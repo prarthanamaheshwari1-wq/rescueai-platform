@@ -1,9 +1,9 @@
-async function loadWeather() {
+async function loadWeather(city = "Delhi") {
 
     try {
 
         const response = await fetch(
-            "http://localhost:5000/api/weather?city=Delhi"
+            `http://localhost:5000/api/weather?city=${city}`
         );
 
         const data = await response.json();
@@ -32,6 +32,20 @@ async function loadWeather() {
     } catch (error) {
 
         console.error(error);
+
+        alert("City not found");
+
+    }
+}
+
+function searchWeather() {
+
+    const city =
+        document.getElementById("cityInput").value;
+
+    if(city.trim() !== ""){
+
+        loadWeather(city);
 
     }
 }

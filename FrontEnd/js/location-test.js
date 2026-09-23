@@ -163,7 +163,13 @@ emergencyForm.addEventListener("submit", async function (event) {
 
         if (response.ok) {
             showResult("Emergency report submitted successfully.", "success");
-            
+            const reportId = data.reportId;
+
+            setTimeout(() => {
+                window.location.href =
+                    `report-tracking.html?reportId=${reportId}`;
+            }, 2000);
+
             // Reset form state
             emergencyForm.reset();
             latitude = null;

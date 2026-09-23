@@ -1,75 +1,18 @@
-// console.log("report-tracking.js loaded");
-
-// // HTML poora load hone ke baad code execute hoga
-// document.addEventListener("DOMContentLoaded", () => {
-//     const trackBtn = document.getElementById("trackBtn");
-//     const reportResult = document.getElementById("reportResult");
-//     const reportIdInput = document.getElementById("reportId");
-
-//     console.log("Track Button Element:", trackBtn);
-
-//     if (!trackBtn) {
-//         console.error("Error: HTML me 'trackBtn' element nahi mila!");
-//         return;
-//     }
-
-//     trackBtn.addEventListener("click", async () => {
-//         console.log("Track button clicked");
-
-//         const reportId = reportIdInput.value.trim();
-
-//         if (!reportId) {
-//             alert("Please enter a Report ID");
-//             return;
-//         }
-
-//         reportResult.innerHTML = "<p>Fetching report details...</p>";
-
-//         try {
-//             const response = await fetch(
-//                 `http://localhost:5000/api/reports/${reportId}`
-//             );
-
-//             if (!response.ok) {
-//                 throw new Error(`Report not found (Status: ${response.status})`);
-//             }
-
-//             const data = await response.json();
-
-//             console.log("Report Data:", data);
-
-//             // Windows backslash (\) ko web forward slash (/) me convert kar rahe hain
-//             const photoUrl = data.Photo_Path 
-//                 ? `http://localhost:5000/${data.Photo_Path.replace(/\\/g, '/')}` 
-//                 : null;
-
-//             reportResult.innerHTML = `
-//                 <h2>Report #${data.Report_id}</h2>
-//                 <p><strong>Title:</strong> ${data.Title}</p>
-//                 <p><strong>Description:</strong> ${data.Description}</p>
-//                 <p><strong>Category:</strong> ${data.Category}</p>
-//                 <p><strong>Severity:</strong> ${data.Severity}</p>
-//                 <p><strong>Priority:</strong> ${data.Priority}</p>
-//                 <p><strong>Status:</strong> ${data.Status}</p>
-//                 <p><strong>Location:</strong> ${data.Location_Name}</p>
-//                 <p><strong>Created:</strong> ${new Date(data.Created_At).toLocaleString()}</p>
-//                 ${photoUrl ? `<div style="margin-top:15px;"><img src="${photoUrl}" alt="Report Photo" style="max-width: 100%; border-radius: 8px;" /></div>` : ''}
-//             `;
-
-//         } catch (error) {
-//             console.error("Fetch Error:", error);
-
-//             reportResult.innerHTML = `
-//                 <p style="color: red; font-weight: bold;">Report not found or server error.</p>
-//             `;
-//         }
-//     });
-// });
-
 console.log("report-tracking.js loaded");
 
 // Execute code after HTML is fully loaded
 document.addEventListener("DOMContentLoaded", () => {
+    const params = new URLSearchParams(window.location.search);
+
+    const reportIdFromUrl = params.get("reportId");
+
+    if (reportIdFromUrl) {
+
+        reportIdInput.value = reportIdFromUrl;
+
+        trackBtn.click();
+
+    }
     const trackBtn = document.getElementById("trackBtn");
     const reportResult = document.getElementById("reportResult");
     const reportIdInput = document.getElementById("reportId");
