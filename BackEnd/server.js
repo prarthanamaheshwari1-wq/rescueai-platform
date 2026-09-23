@@ -4,6 +4,13 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
+const dns = require("dns");
+
+try{
+    dns.setDefaultResultOrder("ipv4first");
+}catch(dnsErr){
+    console.warn("DNS configuration warning:", dnsErr.message);
+}
 
 const authRoutes = require("./routes/auth");
 const reportRoutes = require("./routes/reports");

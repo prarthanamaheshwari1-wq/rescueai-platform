@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RescueAI - Active Disaster Alerts</title>
+
+    <!-- Google Fonts & FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/disaster-events.css">
+</head>
+<body>
+
+    <div class="container">
+
+        <!-- Header -->
+        <div class="header">
+            <h1><i class="fa-solid fa-triangle-exclamation" style="color: #dc2626;"></i> Active Disaster Alerts</h1>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="cards">
+            <div class="card">
+                <h2 id="totalAlerts">0</h2>
+                <p>Total Alerts</p>
+            </div>
+
+            <div class="card">
+                <h2 id="activeAlerts">0</h2>
+                <p>Active Alerts</p>
+            </div>
+        </div>
+
+        <!-- Search Bar / Table Controls -->
+        <div class="table-controls">
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="searchInput" placeholder="Search disaster name, type..." onkeyup="filterTable()">
+            </div>
+        </div>
+
+        <!-- Table Container -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Type</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="disasterTableBody">
+                    <!-- Dynamic Data loaded by disaster-events.js -->
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <!-- Custom JS -->
+    <script src="js/disaster-events.js"></script>
+
+    <!-- Instant Filter Script -->
+    <script>
+        function filterTable() {
+            const input = document.getElementById("searchInput").value.toLowerCase();
+            const rows = document.querySelectorAll("#disasterTableBody tr");
+
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(input) ? "" : "none";
+            });
+        }
+    </script>
+</body>
+</html>
