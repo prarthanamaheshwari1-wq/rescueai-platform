@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RescueAI - Track Report</title>
+
+    <link rel="stylesheet" href="css/report-tracking.css">
+
+    <!-- defer attribute add kiya hai taaki HTML pehle render ho jaye -->
+    <script src="js/report-tracking.js" defer></script>
+</head>
+<body>
+
+    <div class="container">
+
+        <h1>🚨 RescueAI Report Tracking</h1>
+
+        <div class="search-box">
+
+            <input
+                type="number"
+                id="reportId"
+                placeholder="Enter Report ID"
+            >
+
+            <button id="trackBtn">
+                Track Report
+            </button>
+
+        </div>
+
+        <div id="reportResult"></div>
+
+    </div>
+
+</body>
+</html>

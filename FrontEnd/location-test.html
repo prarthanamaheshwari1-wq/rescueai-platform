@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>RescueAI | Emergency Report</title>
+
+    <link rel="stylesheet" href="css/location-test.css">
+</head>
+
+<body>
+
+    <div class="page">
+
+        <!-- HEADER -->
+        <header class="header">
+
+            <div class="brand">
+                <div class="brand-icon">🛟</div>
+
+                <div>
+                    <h1>RescueAI</h1>
+                    <p>AI-Powered Disaster Response</p>
+                </div>
+            </div>
+
+            <div class="emergency-badge">
+                🚨 Emergency Reporting
+            </div>
+
+        </header>
+
+
+        <!-- MAIN CONTENT -->
+        <main class="container">
+
+            <div class="intro">
+
+                <span class="tag">NO LOGIN REQUIRED</span>
+
+                <h2>Report an Emergency</h2>
+
+                <p>
+                    Quickly report a disaster or emergency.
+                    Add a photo and your current location so
+                    responders can understand the situation.
+                </p>
+
+            </div>
+
+
+            <form id="emergencyForm">
+
+
+                <!-- BASIC INFORMATION -->
+                <section class="card">
+
+                    <div class="section-heading">
+                        <div class="section-number">01</div>
+
+                        <div>
+                            <h3>Emergency Information</h3>
+                            <p>Tell us what is happening.</p>
+                        </div>
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="title">
+                            Emergency Title
+                        </label>
+
+                        <input
+                            type="text"
+                            id="title"
+                            placeholder="Example: Building Fire Near Main Road"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-row">
+
+                        <div class="form-group">
+
+                            <label for="category">
+                                Disaster Type
+                            </label>
+
+                            <select id="category" required>
+
+                                <option value="">
+                                    Select disaster type
+                                </option>
+
+                                <option value="Fire">
+                                    🔥 Fire
+                                </option>
+
+                                <option value="Flood">
+                                    🌊 Flood
+                                </option>
+
+                                <option value="Earthquake">
+                                    🌍 Earthquake
+                                </option>
+
+                                <option value="Accident">
+                                    🚗 Accident
+                                </option>
+
+                                <option value="Landslide">
+                                    ⛰️ Landslide
+                                </option>
+
+                                <option value="Storm">
+                                    🌪️ Storm
+                                </option>
+
+                                <option value="Other">
+                                    ⚠️ Other
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+                        <div class="form-group">
+
+                            <label for="severity">
+                                Severity
+                            </label>
+
+                            <select id="severity" required>
+
+                                <option value="">
+                                    Select severity
+                                </option>
+
+                                <option value="Low">
+                                    Low
+                                </option>
+
+                                <option value="Medium">
+                                    Medium
+                                </option>
+
+                                <option value="High">
+                                    High
+                                </option>
+
+                                <option value="Critical">
+                                    Critical
+                                </option>
+
+                            </select>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="description">
+                            Description
+                        </label>
+
+                        <textarea
+                            id="description"
+                            rows="5"
+                            placeholder="Describe the emergency, affected people, visible damage, or any important information..."
+                            required
+                        ></textarea>
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- LOCATION -->
+                <section class="card">
+
+                    <div class="section-heading">
+
+                        <div class="section-number">02</div>
+
+                        <div>
+                            <h3>Emergency Location</h3>
+                            <p>Help responders identify where the incident occurred.</p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="location-box">
+
+                        <div class="location-icon">
+                            📍
+                        </div>
+
+                        <div class="location-content">
+
+                            <h4>Current Location</h4>
+
+                            <p id="locationStatus">
+                                Location has not been detected yet.
+                            </p>
+
+                        </div>
+
+                        <button
+                            type="button"
+                            id="locationButton"
+                            class="location-button"
+                        >
+                            Detect Location
+                        </button>
+
+                    </div>
+
+
+                    <div class="coordinates">
+
+                        <div class="coordinate">
+
+                            <span>Latitude</span>
+
+                            <strong id="latitude">
+                                —
+                            </strong>
+
+                        </div>
+
+
+                        <div class="coordinate">
+
+                            <span>Longitude</span>
+
+                            <strong id="longitude">
+                                —
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="locationName">
+                            Location Name
+                        </label>
+
+                        <input
+                            type="text"
+                            id="locationName"
+                            placeholder="Example: Near City Hospital"
+                            required
+                        >
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- PHOTO -->
+                <section class="card">
+
+                    <div class="section-heading">
+
+                        <div class="section-number">03</div>
+
+                        <div>
+                            <h3>Evidence Photo</h3>
+                            <p>Upload a photo that helps explain the emergency.</p>
+                        </div>
+
+                    </div>
+
+
+                    <label
+                        for="photo"
+                        class="upload-area"
+                        id="uploadArea"
+                    >
+
+                        <div class="upload-icon">
+                            📷
+                        </div>
+
+                        <h4>
+                            Choose an emergency photo
+                        </h4>
+
+                        <p>
+                            JPG, PNG or WEBP • Maximum 20 MB
+                        </p>
+
+                        <span class="choose-button">
+                            Choose Photo
+                        </span>
+
+                        <input
+                            type="file"
+                            id="photo"
+                            accept="image/jpeg,image/png,image/jpg,image/webp"
+                            hidden
+                        >
+
+                    </label>
+
+
+                    <div
+                        id="photoPreview"
+                        class="photo-preview hidden"
+                    >
+
+                        <img
+                            id="previewImage"
+                            src=""
+                            alt="Selected emergency photo"
+                        >
+
+                        <div class="photo-info">
+
+                            <strong id="photoName">
+                                Photo selected
+                            </strong>
+
+                            <span id="photoSize"></span>
+
+                        </div>
+
+                        <button
+                            type="button"
+                            id="removePhoto"
+                            class="remove-button"
+                        >
+                            Remove
+                        </button>
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- SUBMIT -->
+                <section class="submit-section">
+
+                    <div class="privacy-note">
+
+                        <span>🔒</span>
+
+                        <p>
+                            Your emergency report can be submitted
+                            without creating an account.
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        id="submitButton"
+                        class="submit-button"
+                    >
+
+                        <span>🚨</span>
+
+                        Submit Emergency Report
+
+                    </button>
+
+
+                    <div
+                        id="result"
+                        class="result hidden"
+                    ></div>
+
+                </section>
+
+            </form>
+
+        </main>
+
+
+        <!-- FOOTER -->
+        <footer>
+
+            <p>
+                RescueAI • AI-Powered Disaster Response Platform
+            </p>
+
+        </footer>
+
+    </div>
+
+
+    <script src="js/location-test.js"></script>
+
+</body>
+
+</html>

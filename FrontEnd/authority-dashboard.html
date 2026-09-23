@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RescueAI Authority Dashboard</title>
+
+    <link rel="stylesheet" href="css/authority-dashboard.css">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>🚨 RescueAI Authority Dashboard</h1>
+
+        <div class="stats-container">
+
+            <div class="card">
+                <h3>Total Reports</h3>
+                <p id="totalReports">0</p>
+            </div>
+
+            <div class="card">
+                <h3>Submitted</h3>
+                <p id="submittedReports">0</p>
+            </div>
+
+            <div class="card">
+                <h3>Verified</h3>
+                <p id="verifiedReports">0</p>
+            </div>
+
+            <div class="card">
+                <h3>Resolved</h3>
+                <p id="resolvedReports">0</p>
+            </div>
+
+        </div>
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>Severity</th>
+                    <th>Location</th>
+                    <th>Current Status</th>
+                    <th>Change Status</th>
+                    <th>Update</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+
+            <tbody id="reportsTableBody">
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    <script src="js/authority-dashboard.js"></script>
+
+</body>
+
+</html>
