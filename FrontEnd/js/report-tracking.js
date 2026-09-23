@@ -79,6 +79,21 @@ document.addEventListener("DOMContentLoaded", () => {
                         <img src="${photoUrl}" alt="Report Photo" style="max-width: 100%; border-radius: 8px; border: 1px solid #ccc;" />
                     </div>
                 ` : '<p style="margin-top:15px; color: #777;"><em>No photo attached to this report</em></p>'}
+                <div style="margin-top:20px;">
+    <a
+        href="report-details.html?id=${data.Report_id}"
+        style="
+            background:#2563eb;
+            color:white;
+            padding:10px 15px;
+            text-decoration:none;
+            border-radius:6px;
+            display:inline-block;
+        "
+    >
+        View Full Details
+    </a>
+</div>
             `;
 
         } catch (error) {
