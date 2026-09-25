@@ -112,3 +112,50 @@ select{
     font-size:28px;
     font-weight:bold;
 }
+
+/* Quick Action Buttons */
+
+.quick-actions{
+
+    display:flex;
+    justify-content:center;
+    gap:20px;
+
+    margin-bottom:25px;
+    flex-wrap:wrap;
+
+}
+
+.action-btn{
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    width:220px;
+    height:70px;
+
+    background:white;
+
+    border-radius:12px;
+
+    text-decoration:none;
+    color:#333;
+
+    font-size:18px;
+    font-weight:bold;
+
+    box-shadow:0 2px 8px rgba(0,0,0,0.15);
+
+    transition:0.3s;
+
+}
+
+.action-btn:hover{
+
+    transform:translateY(-5px);
+
+    background:#dc3545;
+    color:white;
+
+}

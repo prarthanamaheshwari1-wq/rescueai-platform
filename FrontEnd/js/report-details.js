@@ -13,43 +13,56 @@ async function loadReportDetails() {
         const report = await response.json();
 
         document.getElementById("reportDetails").innerHTML = `
-            <h2>Report #${report.Report_id}</h2>
+    <h2>Report #${report.Report_id}</h2>
 
-            <div class="detail">
-                <span class="label">Title:</span>
-                ${report.Title}
-            </div>
+    <div class="detail">
+        <span class="label">Title:</span>
+        ${report.Title}
+    </div>
 
-            <div class="detail">
-                <span class="label">Description:</span>
-                ${report.Description}
-            </div>
+    <div class="detail">
+        <span class="label">Description:</span>
+        ${report.Description}
+    </div>
 
-            <div class="detail">
-                <span class="label">Category:</span>
-                ${report.Category}
-            </div>
+    <div class="detail">
+        <span class="label">Category:</span>
+        ${report.Category}
+    </div>
 
-            <div class="detail">
-                <span class="label">Severity:</span>
-                ${report.Severity}
-            </div>
+    <div class="detail">
+        <span class="label">Severity:</span>
+        ${report.Severity}
+    </div>
 
-            <div class="detail">
-                <span class="label">Status:</span>
-                ${report.Status}
-            </div>
+    <div class="detail">
+        <span class="label">Status:</span>
+        ${report.Status}
+    </div>
 
-            <div class="detail">
-                <span class="label">Location:</span>
-                ${report.Location_Name}
-            </div>
+    <div class="detail">
+        <span class="label">Location:</span>
+        ${report.Location_Name}
+    </div>
 
-            <div class="detail">
-                <span class="label">Created:</span>
-                ${new Date(report.Created_At).toLocaleString()}
-            </div>
-        `;
+    <div class="detail">
+        <span class="label">Created:</span>
+        ${new Date(report.Created_At).toLocaleString()}
+    </div>
+
+    <hr>
+
+    <h3>📷 Evidence Photo</h3>
+
+    ${report.Photo_Path
+                ? `<img
+              src="http://localhost:5000/${report.Photo_Path.replace(/\\/g, "/")}"
+              class="report-image"
+              alt="Disaster Evidence"
+           >`
+                : `<p>No photo available</p>`
+            }
+`;
 
     } catch (error) {
 

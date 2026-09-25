@@ -49,3 +49,57 @@ h1{
     border-radius:10px;
     box-shadow:0 0 10px rgba(0,0,0,0.2);
 }
+
+.map-container{
+    position: relative;
+}
+
+.legend{
+    position: absolute;
+    top: 15px;
+    right: 15px;
+
+    z-index: 1000;
+
+    background: white;
+    padding: 12px 15px;
+
+    border-radius: 10px;
+
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+
+    font-size: 14px;
+}
+
+.legend h4{
+    margin: 0 0 10px 0;
+}
+
+.legend p{
+    margin: 6px 0;
+}
+
+.red-dot,
+.green-dot,
+.blue-dot{
+    display: inline-block;
+
+    width: 12px;
+    height: 12px;
+
+    border-radius: 50%;
+
+    margin-right: 8px;
+}
+
+.red-dot{
+    background: red;
+}
+
+.green-dot{
+    background: green;
+}
+
+.blue-dot{
+    background: blue;
+}

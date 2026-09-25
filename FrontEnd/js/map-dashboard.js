@@ -1,11 +1,14 @@
 console.log("Map Dashboard Loaded");
 
-const map = L.map('map').setView([28.938244, 77.635475], 13);
+const map = L.map("map").setView(
+    [28.938244, 77.635475],
+    15
+);
 
 L.tileLayer(
-    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     {
-        attribution: '&copy; OpenStreetMap contributors'
+        attribution: "&copy; OpenStreetMap contributors"
     }
 ).addTo(map);
 
@@ -19,46 +22,73 @@ async function loadReportsOnMap() {
 
         const reports = await response.json();
 
-        const statusBreakdown = reports.reduce((acc, r) => {
-            acc[r.Status] = (acc[r.Status] || 0) + 1;
-            return acc;
-        }, {});
-        console.log("Raw Status Breakdown from API:", statusBreakdown);
+        const total = reports.length;
 
-        let total = reports.length;
-
-        let pending = reports.filter(
-            r => r.Status === "Pending" || r.Status === "Submitted"
+        const pending = reports.filter(
+            report =>
+                report.Status === "Pending" ||
+                report.Status === "Submitted"
         ).length;
 
-        let verified = reports.filter(
-            r => r.Status === "Verified"
+        const verified = reports.filter(
+            report =>
+                report.Status === "Verified"
         ).length;
 
-        let resolved = reports.filter(
-            r => r.Status === "Resolved"
+        const resolved = reports.filter(
+            report =>
+                report.Status === "Resolved"
         ).length;
 
-        document.getElementById("totalReports").textContent = total;
+        document.getElementById("totalReports")
+            .textContent = total;
 
-        document.getElementById("pendingReports").textContent = pending;
+        document.getElementById("pendingReports")
+            .textContent = pending;
 
-        document.getElementById("verifiedReports").textContent = verified;
+        document.getElementById("verifiedReports")
+            .textContent = verified;
 
-        document.getElementById("resolvedReports").textContent = resolved;
+        document.getElementById("resolvedReports")
+            .textContent = resolved;
 
         reports.forEach(report => {
 
-            if(report.Latitude && report.Longitude){
+            if (
+                report.Latitude &&
+                report.Longitude
+            ) {
 
-                L.marker([
-                    report.Latitude,
-                    report.Longitude
-                ])
+                let markerColor = "red";
+
+                if (report.Status === "Verified") {
+
+                    markerColor = "green";
+
+                } else if (
+                    report.Status === "Resolved"
+                ) {
+
+                    markerColor = "blue";
+
+                }
+
+                L.circleMarker(
+                    [
+                        report.Latitude,
+                        report.Longitude
+                    ],
+                    {
+                        radius: 10,
+                        color: markerColor,
+                        fillColor: markerColor,
+                        fillOpacity: 0.8
+                    }
+                )
                 .addTo(map)
                 .bindPopup(`
                     <b>${report.Title}</b><br>
-                    ${report.Category}<br>
+                    Category: ${report.Category}<br>
                     Severity: ${report.Severity}<br>
                     Status: ${report.Status}
                 `);
@@ -67,13 +97,72 @@ async function loadReportsOnMap() {
 
         });
 
-        console.log("Markers Loaded");
+        console.log("Disaster Reports Loaded");
 
-    } catch(error){
+    } catch (error) {
 
-        console.error(error);
+        console.error(
+            "Reports Error:",
+            error
+        );
 
     }
+
+}
+
+async function loadResourcesOnMap() {
+
+    try {
+
+        const response = await fetch(
+            "http://localhost:5000/api/resources"
+        );
+
+        const resources = await response.json();
+
+        resources.forEach(resource => {
+
+            if (
+                resource.Latitude &&
+                resource.Longitude
+            ) {
+
+                L.circleMarker(
+                    [
+                        resource.Latitude,
+                        resource.Longitude
+                    ],
+                    {
+                        radius: 8,
+                        color: "blue",
+                        fillColor: "blue",
+                        fillOpacity: 0.9
+                    }
+                )
+                .addTo(map)
+                .bindPopup(`
+                    <b>${resource.Resource_Name}</b><br>
+                    Type: ${resource.Resource_Type}<br>
+                    Quantity: ${resource.Quantity}<br>
+                    Status: ${resource.Status}
+                `);
+
+            }
+
+        });
+
+        console.log("Resources Loaded");
+
+    } catch (error) {
+
+        console.error(
+            "Resources Error:",
+            error
+        );
+
+    }
+
 }
 
 loadReportsOnMap();
+loadResourcesOnMap();

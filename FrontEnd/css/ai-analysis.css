@@ -121,3 +121,33 @@ canvas{
 .stat-card h3{
     margin-bottom:20px;
 }
+
+.analysis-card button{
+
+    margin-top:15px;
+
+    background:#2563eb;
+
+    color:white;
+
+    border:none;
+
+    padding:10px 16px;
+
+    border-radius:8px;
+
+    cursor:pointer;
+
+    font-weight:bold;
+
+    transition:0.3s;
+
+}
+
+.analysis-card button:hover{
+
+    background:#1d4ed8;
+
+    transform:translateY(-2px);
+
+}

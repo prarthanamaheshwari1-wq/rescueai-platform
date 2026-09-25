@@ -123,6 +123,10 @@ async function loadAnalysis() {
                         ${item.AI_Recommendation}
                     </p>
 
+                    <button onclick="viewReport(${item.Report_id})">
+                        View Report
+                    </button>
+
                 </div>
             `;
         });
@@ -217,4 +221,10 @@ function createPriorityChart(priorityCounts) {
 
     });
 
+}
+
+function viewReport(reportId) {
+
+    window.location.href =
+        `report-details.html?id=${reportId}`;
 }
