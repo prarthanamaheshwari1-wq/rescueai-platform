@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resource Management Dashboard</title>
+
+    <link rel="stylesheet" href="css/resources.css">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>📦 Resource Management Dashboard</h1>
+
+        <div class="top-section">
+
+            <div class="resource-form">
+
+                <h2>Add New Resource</h2>
+
+                <input type="text" id="resourceName" placeholder="Resource Name">
+
+                <input type="text" id="resourceType" placeholder="Resource Type">
+
+                <input type="number" id="quantity" placeholder="Quantity">
+
+                <input type="text" id="location" placeholder="Location">
+
+                <select id="status">
+
+                    <option value="Available">
+                        Available
+                    </option>
+
+                    <option value="Deployed">
+                        Deployed
+                    </option>
+
+                </select>
+
+                <button onclick="addResource()">
+                    Add Resource
+                </button>
+
+            </div>
+
+            <div class="stats-side">
+
+                <div class="card">
+                    <h2 id="totalResources">0</h2>
+                    <p>Total Resources</p>
+                </div>
+
+                <div class="card">
+                    <h2 id="availableResources">0</h2>
+                    <p>Available Resources</p>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="chart-container">
+
+            <h2>Resource Analytics</h2>
+
+            <canvas id="resourceChart"></canvas>
+
+        </div>
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Resource</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Location</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody id="resourceTableBody">
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/resources.js"></script>
+
+</body>
+
+</html>

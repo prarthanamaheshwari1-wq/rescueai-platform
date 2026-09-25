@@ -17,6 +17,7 @@ const reportRoutes = require("./routes/reports");
 const disasterRoutes = require("./routes/disasters");
 const aiAnalysisRoutes = require("./routes/ai-analysis");
 const weatherRoutes = require("./routes/weather");
+const resourceRoutes = require("./routes/resources");
 const { connectDB } = require("./config/db");
 
 const app = express();
@@ -40,6 +41,7 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/disasters", disasterRoutes);
 app.use("/api/ai-analysis", aiAnalysisRoutes);
 app.use("/api/weather", weatherRoutes);
+app.use("/api/resources", resourceRoutes);
 
 app.get("/", (req, res) => {
     res.json({ message: "RescueAI Backend running!" });
