@@ -1,22 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Analysis Dashboard</title>
     <link rel="stylesheet" href="css/ai-analysis.css">
 </head>
+
 <body>
 
     <div class="container">
 
-        <h1>🤖 AI Analysis Dashboard</h1>
+        <h1>🤖 RescueAI Intelligence Dashboard</h1>
+
+        <div class="dashboard-cards">
+
+            <div class="stat-card">
+                <h2 id="totalAnalysis">0</h2>
+                <p>Total Analyses</p>
+            </div>
+
+            <div class="stat-card">
+                <h2 id="criticalCases">0</h2>
+                <p>Critical Cases</p>
+            </div>
+
+            <div class="stat-card">
+                <h2 id="misinformationCases">0</h2>
+                <p>Misinformation Alerts</p>
+            </div>
+
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search report, category, priority...">
+        </div>
+
+        <div id="analysisContainer"></div>
+        <div class="dashboard-cards">
+
+            <div class="stat-card">
+                <h3>Incident Categories</h3>
+                <canvas id="categoryChart"></canvas>
+            </div>
+
+            <div class="stat-card">
+                <h3>Priority Distribution</h3>
+                <canvas id="priorityChart"></canvas>
+            </div>
+
+        </div>
 
         <div id="analysisContainer"></div>
 
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="js/ai-analysis.js"></script>
 
 </body>
+
 </html>
