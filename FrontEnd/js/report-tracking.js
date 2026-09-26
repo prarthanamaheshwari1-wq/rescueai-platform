@@ -43,26 +43,38 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error(`Report not found (Status: ${response.status})`);
             }
 
-            const data = await response.json();
+            // 1. FIX: Parse JSON response first
+            const result = await response.json();
+            console.log("Raw API Result:", result);
 
-            console.log("Report Data:", data);
+            // 2. Extract first report object safely
+            const data = Array.isArray(result)
+                ? result[0]
+                : result;
 
-            // Timeline Status Logic
+            console.log("Report Data Object:", data);
+
+            if (!data) {
+                throw new Error("No report data found in response");
+            }
+
+            // Timeline Status Logic (Handles both Report_Status and Status)
+            const currentStatus = data.Report_Status || data.Status || "";
 
             let submittedClass = "pending";
             let verifiedClass = "pending";
             let resolvedClass = "pending";
 
-            if (data.Status === "Submitted") {
+            if (currentStatus === "Submitted") {
 
                 submittedClass = "completed";
 
-            } else if (data.Status === "Verified") {
+            } else if (currentStatus === "Verified") {
 
                 submittedClass = "completed";
                 verifiedClass = "completed";
 
-            } else if (data.Status === "Resolved") {
+            } else if (currentStatus === "Resolved") {
 
                 submittedClass = "completed";
                 verifiedClass = "completed";
@@ -103,7 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 <p><strong>Priority:</strong> ${data.Priority || "N/A"}</p>
 
-                <p><strong>Status:</strong> ${data.Status || "N/A"}</p>
+                <p><strong>Status:</strong> ${currentStatus || "N/A"}</p>
 
                 <div class="timeline">
 
@@ -130,6 +142,14 @@ document.addEventListener("DOMContentLoaded", () => {
                         ? new Date(data.Created_At).toLocaleString()
                         : "N/A"}
                 </p>
+
+                <p><strong>Resource Name:</strong> ${data.Resource_Name || "Not Assigned"}</p>
+
+                <p><strong>Resource Type:</strong> ${data.Resource_Type || "N/A"}</p>
+
+                <p><strong>Resource Status:</strong> ${data.Resource_Status || "N/A"}</p>
+
+                <p><strong>Assignment Status:</strong> ${data.Assignment_Status || "N/A"}</p>      
 
                 ${photoUrl
                     ? `
@@ -182,7 +202,8 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
         }
 
-    });
+    }
+    );
 
     // Auto-search if reportId comes from URL
 

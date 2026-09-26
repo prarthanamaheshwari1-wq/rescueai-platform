@@ -1,4 +1,5 @@
 const express = require("express");
+console.log("REPORTS.JS LOADED");
 const router = express.Router();
 const { sql } = require("../config/db");
 const upload = require("../middleware/upload");
@@ -223,6 +224,7 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
 });
 
 router.get("/", async (req, res) => {
+
     try {
 
         const request = new sql.Request();
@@ -242,23 +244,69 @@ router.get("/", async (req, res) => {
         res.status(500).json({
             message: "Server Error"
         });
+
     }
+
 });
 
 // Get report by Report ID
+// Get report by Report ID
+// Get report by Report ID
 router.get("/:reportId", async (req, res) => {
+
+    console.log("=== GET REPORT DETAILS HIT ===", req.params.reportId);
+
     try {
+
         const { reportId } = req.params;
 
         const request = new sql.Request();
 
-        request.input("ReportId", sql.Int, reportId);
+        request.input(
+            "ReportId",
+            sql.Int,
+            reportId
+        );
 
         const result = await request.query(`
-            SELECT *
-            FROM Incident_Reports
-            WHERE Report_id = @ReportId
+            SELECT
+                IR.Report_id,
+                IR.User_id,
+                IR.Disaster_id,
+                IR.Title,
+                IR.Description,
+                IR.Category,
+                IR.Severity,
+                IR.Priority,
+                IR.Location_Name,
+                IR.Latitude,
+                IR.Longitude,
+                IR.Status AS Report_Status,
+                IR.Created_At,
+                IR.Photo_Path,
+
+                ISNULL(RA.Assignment_id, 0) AS Assignment_id,
+                ISNULL(RA.Status, 'No Assignment') AS Assignment_Status,
+
+                ISNULL(R.Resource_id, 0) AS Resource_id,
+                ISNULL(R.Resource_Name, 'None') AS Resource_Name,
+                R.Resource_Type,
+                R.Quantity,
+                R.Location_Name AS Resource_Location,
+                R.Status AS Resource_Status
+
+            FROM Incident_Reports IR
+
+            LEFT JOIN Resource_Assignments RA
+                ON IR.Report_id = RA.Report_id
+
+            LEFT JOIN Resources R
+                ON RA.Resource_id = R.Resource_id
+
+            WHERE IR.Report_id = @ReportId
         `);
+
+        console.log("SQL QUERY RESULT RECORDSET:", result.recordset);
 
         if (result.recordset.length === 0) {
             return res.status(404).json({
@@ -266,20 +314,29 @@ router.get("/:reportId", async (req, res) => {
             });
         }
 
-        res.status(200).json(result.recordset[0]);
+        // Return all matched rows or array of joined data
+        res.status(200).json(result.recordset);
 
     } catch (error) {
-        console.error("Get Report Error:", error);
+
+        console.error(
+            "Get Report Error:",
+            error
+        );
 
         res.status(500).json({
             message: "Server Error"
         });
+
     }
+
 });
 
 // Update report status
 router.put("/:reportId/status", async (req, res) => {
     try {
+
+        console.log("NEW REPORT DETAILS ROUTE HIT");
 
         const { reportId } = req.params;
         const { status } = req.body;
