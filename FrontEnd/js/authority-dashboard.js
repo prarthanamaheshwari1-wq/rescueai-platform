@@ -84,6 +84,12 @@ async function loadReports() {
                 </td>
 
                 <td>
+                    <button onclick="assignResource(${report.Report_id})">
+                        Assign
+                    </button>
+                </td>
+
+                <td>
                     <button onclick="viewReport(${report.Report_id})">
                         View
                     </button>
@@ -136,9 +142,47 @@ async function updateStatus(reportId) {
     }
 }
 
-function viewReport(reportId){
+function viewReport(reportId) {
 
     window.location.href =
         `report-details.html?id=${reportId}`;
+
+}
+
+async function assignResource(reportId) {
+
+    const resourceId = prompt(
+        "Enter Resource ID to assign:\n\n1 = Ambulance\n2 = Medical Kit\n3 = Relief Truck\n4 = Fire Brigade"
+    );
+
+    if (!resourceId) return;
+
+    try {
+
+        const response = await fetch(
+            "http://localhost:5000/api/resources/assign",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    reportId: reportId,
+                    resourceId: parseInt(resourceId)
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        alert(data.message);
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert("Assignment Failed");
+
+    }
 
 }

@@ -31,3 +31,39 @@ button{
     border-radius:10px;
     margin-top:20px;
 }
+
+.timeline {
+
+    margin-top: 20px;
+
+}
+
+.timeline-step {
+
+    padding: 12px;
+
+    margin: 8px 0;
+
+    border-radius: 8px;
+
+    font-weight: bold;
+
+    background: #e5e7eb;
+
+}
+
+.timeline-step.completed {
+
+    background: #22c55e;
+
+    color: white;
+
+}
+
+.timeline-step.pending {
+
+    background: #d1d5db;
+
+    color: #555;
+
+}
