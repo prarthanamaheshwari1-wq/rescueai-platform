@@ -90,6 +90,26 @@ async function loadPendingReports() {
 
                     </div>
 
+                    <div class="resource-section">
+
+                        <select
+                            id="volunteer-${report.Report_id}"
+                            class="resource-dropdown"
+                        >
+                            <option value="1">Volunteer 1</option>
+                            <option value="2">Volunteer 2</option>
+                            <option value="3">Volunteer 3</option>
+                        </select>
+
+                        <button
+                            class="assign-btn"
+                            onclick="assignVolunteer(${report.Report_id})"
+                        >
+                            Assign Volunteer
+                        </button>
+
+                    </div>
+
                     ${report.Misinformation_Score >= 50
                     ? `
                         <div style="
@@ -230,6 +250,55 @@ async function assignResource(reportId) {
         console.error(error);
 
         alert("Assignment Failed");
+
+    }
+
+}
+
+async function assignVolunteer(reportId) {
+
+    try {
+
+        const volunteerId =
+            document.getElementById(
+                `volunteer-${reportId}`
+            ).value;
+
+            console.log("Volunteer ID =", volunteerId);
+            console.log("Report ID =", reportId);
+
+        const response = await fetch(
+            `http://localhost:5000/api/reports/${reportId}/assign-volunteer`,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    volunteerId: volunteerId
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+
+            alert(data.message);
+
+            return;
+
+        }
+
+        alert(data.message);
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert("Volunteer Assignment Failed");
 
     }
 

@@ -390,7 +390,9 @@ router.get("/:reportId", async (req, res) => {
         );
 
         const result = await request.query(`
+
             SELECT
+
                 IR.Report_id,
                 IR.User_id,
                 IR.Disaster_id,
@@ -414,7 +416,15 @@ router.get("/:reportId", async (req, res) => {
                 R.Resource_Type,
                 R.Quantity,
                 R.Location_Name AS Resource_Location,
-                R.Status AS Resource_Status
+                R.Status AS Resource_Status,
+
+                ISNULL(VA.Assignment_id, 0) AS Volunteer_Assignment_Id,
+                ISNULL(VA.Status, 'No Volunteer') AS Volunteer_Assignment_Status,
+
+                ISNULL(V.Volunteer_id, 0) AS Volunteer_id,
+                ISNULL(V.Skill_Set, 'None') AS Volunteer_Skill,
+                ISNULL(V.Availability_Status, 'N/A') AS Volunteer_Status,
+                ISNULL(V.Location_Name, 'N/A') AS Volunteer_Location
 
             FROM Incident_Reports IR
 
@@ -424,19 +434,32 @@ router.get("/:reportId", async (req, res) => {
             LEFT JOIN Resources R
                 ON RA.Resource_id = R.Resource_id
 
+            LEFT JOIN Volunteer_Assignments VA
+                ON IR.Report_id = VA.Report_id
+
+            LEFT JOIN Volunteers V
+                ON VA.Volunteer_id = V.Volunteer_id
+
             WHERE IR.Report_id = @ReportId
+
         `);
 
-        console.log("SQL QUERY RESULT RECORDSET:", result.recordset);
+        console.log(
+            "SQL QUERY RESULT RECORDSET:",
+            result.recordset
+        );
 
         if (result.recordset.length === 0) {
+
             return res.status(404).json({
                 message: "Report not found"
             });
+
         }
 
-        // Return all matched rows or array of joined data
-        res.status(200).json(result.recordset);
+        res.status(200).json(
+            result.recordset
+        );
 
     } catch (error) {
 
@@ -571,6 +594,88 @@ router.post("/:reportId/assign-resource", async (req, res) => {
     }
 
 });
+
+router.post("/:reportId/assign-volunteer", async (req, res) => {
+
+    try {
+
+        const { reportId } = req.params;
+        const { volunteerId } = req.body;
+
+        // Check existing active assignment
+
+        const checkRequest = new sql.Request();
+
+        checkRequest.input(
+            "ReportId",
+            sql.Int,
+            reportId
+        );
+
+        const existingAssignment =
+            await checkRequest.query(`
+                SELECT *
+                FROM Volunteer_Assignments
+                WHERE Report_id = @ReportId
+                  AND Status = 'Active'
+            `);
+
+        if (existingAssignment.recordset.length > 0) {
+
+            return res.status(400).json({
+                message: "Volunteer already assigned"
+            });
+
+        }
+
+        const request = new sql.Request();
+
+        request.input(
+            "ReportId",
+            sql.Int,
+            reportId
+        );
+
+        request.input(
+            "VolunteerId",
+            sql.Int,
+            volunteerId
+        );
+
+        await request.query(`
+            INSERT INTO Volunteer_Assignments
+            (
+                Report_id,
+                Volunteer_id,
+                Status
+            )
+            VALUES
+            (
+                @ReportId,
+                @VolunteerId,
+                'Active'
+            )
+        `);
+
+        res.json({
+            message: "Volunteer assigned successfully"
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Volunteer Assignment Error:",
+            error
+        );
+
+        res.status(500).json({
+            message: "Server Error"
+        });
+
+    }
+
+});
+
 
 module.exports = router;
 
