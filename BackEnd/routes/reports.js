@@ -487,5 +487,90 @@ router.put("/:reportId/status", async (req, res) => {
     }
 });
 
+router.post("/:reportId/assign-resource", async (req, res) => {
+
+    try {
+
+        const { reportId } = req.params;
+        const { resourceId } = req.body;
+
+        // Check if resource already assigned
+
+        const checkRequest = new sql.Request();
+
+        checkRequest.input(
+            "ReportId",
+            sql.Int,
+            reportId
+        );
+
+        const existingAssignment =
+            await checkRequest.query(`
+                SELECT *
+                FROM Resource_Assignments
+                WHERE Report_id = @ReportId
+                  AND Status = 'Active'
+            `);
+
+        if (existingAssignment.recordset.length > 0) {
+
+            return res.status(400).json({
+                message: "Resource already assigned to this report"
+            });
+
+        }
+
+        // Insert new assignment
+
+        const request = new sql.Request();
+
+        request.input(
+            "ReportId",
+            sql.Int,
+            reportId
+        );
+
+        request.input(
+            "ResourceId",
+            sql.Int,
+            resourceId
+        );
+
+        await request.query(`
+
+            INSERT INTO Resource_Assignments
+            (
+                Report_id,
+                Resource_id,
+                Status
+            )
+            VALUES
+            (
+                @ReportId,
+                @ResourceId,
+                'Active'
+            )
+
+        `);
+
+        res.json({
+            message: "Resource assigned successfully"
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Assign Resource Error:",
+            error
+        );
+
+        res.status(500).json({
+            message: "Server Error"
+        });
+
+    }
+
+});
+
 module.exports = router;
 

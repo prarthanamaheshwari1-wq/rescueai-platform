@@ -51,26 +51,47 @@ async function loadPendingReports() {
 
                     <p>
                         <strong>AI Priority:</strong>
-                            ${report.AI_Priority}
+                        ${report.AI_Priority}
                     </p>
 
                     <p>
                         <strong>Misinformation Score:</strong>
-                            ${report.Misinformation_Score}%
+                        ${report.Misinformation_Score}%
                     </p>
 
                     <p>
                         <strong>AI Summary:</strong>
-                            ${report.AI_Summary}
+                        ${report.AI_Summary}
                     </p>
 
                     <p>
                         <strong>AI Recommendation:</strong>
-                            ${report.AI_Recommendation}
+                        ${report.AI_Recommendation}
                     </p>
 
+                    <div class="resource-section">
+
+                        <select
+                            id="resource-${report.Report_id}"
+                            class="resource-dropdown"
+                        >
+                            <option value="1">Ambulance</option>
+                            <option value="2">Medical Kit</option>
+                            <option value="3">Relief Truck</option>
+                            <option value="4">Fire Brigade</option>
+                        </select>
+
+                        <button
+                            class="assign-btn"
+                            onclick="assignResource(${report.Report_id})"
+                        >
+                            Assign Resource
+                        </button>
+
+                    </div>
+
                     ${report.Misinformation_Score >= 50
-                        ? `
+                    ? `
                         <div style="
                             background:#fee2e2;
                             color:#b91c1c;
@@ -81,8 +102,8 @@ async function loadPendingReports() {
                         ">
                             ⚠ Potential Misinformation Detected
                         </div>
-                        `
-                        : ""
+                    `
+                    : ""
                     }
 
                     <div class="button-group">
@@ -163,6 +184,52 @@ async function rejectReport(reportId) {
     } catch (error) {
 
         console.error(error);
+
+    }
+
+}
+
+async function assignResource(reportId) {
+
+    try {
+
+        const resourceId =
+            document.getElementById(
+                `resource-${reportId}`
+            ).value;
+
+        const response = await fetch(
+            `http://localhost:5000/api/reports/${reportId}/assign-resource`,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    resourceId: resourceId
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+
+            alert(data.message);
+
+            return;
+
+        }
+
+        alert(data.message);
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert("Assignment Failed");
 
     }
 
