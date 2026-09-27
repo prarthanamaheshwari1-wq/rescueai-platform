@@ -249,6 +249,127 @@ router.get("/", async (req, res) => {
 
 });
 
+router.get("/pending", async (req, res) => {
+
+    try {
+
+        const request = new sql.Request();
+
+        const result = await request.query(`
+            SELECT
+
+                IR.Report_id,
+                IR.Title,
+                IR.Description,
+                IR.Category,
+                IR.Severity,
+                IR.Location_Name,
+                IR.Status,
+
+                AI.AI_Category,
+                AI.AI_Severity,
+                AI.AI_Priority,
+                AI.Misinformation_Score,
+                AI.AI_Summary,
+                AI.AI_Recommendation
+
+            FROM Incident_Reports IR
+
+            LEFT JOIN AI_Analysis AI
+                ON IR.Report_id = AI.Report_id
+
+            WHERE IR.Status = 'Submitted'
+
+            ORDER BY IR.Report_id DESC
+
+        `);
+
+        res.status(200).json(result.recordset);
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            message: "Server Error"
+        });
+
+    }
+
+});
+
+router.put("/:reportId/verify", async (req, res) => {
+
+    try {
+
+        const { reportId } = req.params;
+
+        const request = new sql.Request();
+
+        request.input(
+            "ReportId",
+            sql.Int,
+            reportId
+        );
+
+        await request.query(`
+            UPDATE Incident_Reports
+            SET Status = 'Verified'
+            WHERE Report_id = @ReportId
+        `);
+
+        res.json({
+            message: "Report Verified"
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            message: "Server Error"
+        });
+
+    }
+
+});
+
+router.put("/:reportId/reject", async (req, res) => {
+
+    try {
+
+        const { reportId } = req.params;
+
+        const request = new sql.Request();
+
+        request.input(
+            "ReportId",
+            sql.Int,
+            reportId
+        );
+
+        await request.query(`
+            UPDATE Incident_Reports
+            SET Status = 'Rejected'
+            WHERE Report_id = @ReportId
+        `);
+
+        res.json({
+            message: "Report Rejected"
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            message: "Server Error"
+        });
+
+    }
+
+});
+
 // Get report by Report ID
 // Get report by Report ID
 // Get report by Report ID
