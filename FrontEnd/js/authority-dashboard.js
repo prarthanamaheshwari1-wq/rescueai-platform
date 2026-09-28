@@ -1,126 +1,228 @@
 console.log("Authority Dashboard Loaded");
 
 async function loadReports() {
+
     console.log("Starting loadReports...");
+
     try {
-        const response = await fetch("http://localhost:5000/api/reports", {
-            cache: "no-store"
-        });
+
+        const response = await fetch(
+            "http://localhost:5000/api/reports",
+            {
+                cache: "no-store"
+            }
+        );
 
         console.log("loadReports HTTP Status:", response.status);
 
         if (!response.ok) {
-            throw new Error(`Server Error Code: ${response.status}`);
+            throw new Error(
+                `Server Error Code: ${response.status}`
+            );
         }
 
         const reports = await response.json();
 
-        let total = reports.length;
+        document.getElementById("totalReports").textContent =
+            reports.length;
 
-        let submitted = reports.filter(
-            r => r.Status === "Submitted"
-        ).length;
+        document.getElementById("submittedReports").textContent =
+            reports.filter(
+                r => r.Status === "Submitted"
+            ).length;
 
-        let verified = reports.filter(
-            r => r.Status === "Verified"
-        ).length;
+        document.getElementById("verifiedReports").textContent =
+            reports.filter(
+                r => r.Status === "Verified"
+            ).length;
 
-        let resolved = reports.filter(
-            r => r.Status === "Resolved"
-        ).length;
+        document.getElementById("resolvedReports").textContent =
+            reports.filter(
+                r => r.Status === "Resolved"
+            ).length;
 
-        document.getElementById("totalReports").textContent = total;
-
-        document.getElementById("submittedReports").textContent = submitted;
-
-        document.getElementById("verifiedReports").textContent = verified;
-
-        document.getElementById("resolvedReports").textContent = resolved;
-
-        console.log("Reports Data Received:", reports);
-
-        const tableBody = document.getElementById("reportsTableBody");
-        if (!tableBody) {
-            console.error("ERROR: HTML mein id='reportsTableBody' wala element nahi mila!");
-            return;
-        }
+        const tableBody =
+            document.getElementById("reportsTableBody");
 
         tableBody.innerHTML = "";
 
-        const reportArray = Array.isArray(reports) ? reports : (reports.reports || reports.data || []);
+        reports.forEach(report => {
 
-        reportArray.forEach(report => {
-            // Fix: Trim any extra spaces and clean status string
-            const rawStatus = report.Status ?? report.status ?? "";
-            const cleanStatus = String(rawStatus).trim() || "Submitted";
+            const status =
+                String(report.Status || "Submitted")
+                    .trim();
 
-            const statusClass = cleanStatus.toLowerCase();
+            const statusClass =
+                status.toLowerCase();
 
             tableBody.innerHTML += `
-            <tr>
-                <td>${report.Report_id}</td>
-                <td>${report.Category || "N/A"}</td>
-                <td>${report.Severity || "N/A"}</td>
-                <td>${report.Location_Name || "N/A"}</td>
+                <tr>
+                    <td>${report.Report_id}</td>
+                    <td>${report.Category || "N/A"}</td>
+                    <td>${report.Severity || "N/A"}</td>
+                    <td>${report.Location_Name || "N/A"}</td>
 
-                <td>
-                    <span class="status ${statusClass}">
-                        ${cleanStatus}
-                    </span>
-                </td>
+                    <td>
+                        <span class="status ${statusClass}">
+                            ${status}
+                        </span>
+                    </td>
 
-                <td>
-                    <select id="status-${report.Report_id}">
-                        <option value="Submitted" ${statusClass === "submitted" ? "selected" : ""}>Submitted</option>
-                        <option value="Verified" ${statusClass === "verified" ? "selected" : ""}>Verified</option>
-                        <option value="Resolved" ${statusClass === "resolved" ? "selected" : ""}>Resolved</option>
-                    </select>
-                </td>
+                    <td>
+                        <select id="status-${report.Report_id}">
+                            <option value="Submitted"
+                                ${status === "Submitted" ? "selected" : ""}>
+                                Submitted
+                            </option>
 
-                <td>
-                    <button onclick="updateStatus(${report.Report_id})">
-                        Update
-                    </button>
-                </td>
+                            <option value="Verified"
+                                ${status === "Verified" ? "selected" : ""}>
+                                Verified
+                            </option>
 
-                <td>
-                    <button onclick="assignResource(${report.Report_id})">
-                        Assign
-                    </button>
-                </td>
+                            <option value="Resolved"
+                                ${status === "Resolved" ? "selected" : ""}>
+                                Resolved
+                            </option>
+                        </select>
+                    </td>
 
-                <td>
-                    <button onclick="viewReport(${report.Report_id})">
-                        View
-                    </button>
-                </td>
+                    <td>
+                        <button onclick="updateStatus(${report.Report_id})">
+                            Update
+                        </button>
+                    </td>
 
-            </tr>
+                    <td>
+                        <button onclick="assignResource(${report.Report_id})">
+                            Assign
+                        </button>
+                    </td>
+
+                    <td>
+                        <button onclick="viewReport(${report.Report_id})">
+                            View
+                        </button>
+                    </td>
+                </tr>
             `;
         });
 
         console.log("Table render complete!");
+
         await loadAlerts();
+
     } catch (error) {
-        console.error("X. Error in loadReports:", error.message);
+
+        console.error(
+            "Error in loadReports:",
+            error
+        );
+
     }
 }
 
-async function runDashboard() {
-    await loadReports();
-    console.log("BOTTOM OF FILE REACHED");
-}
+async function loadAlerts() {
 
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", runDashboard);
-} else {
-    runDashboard();
+    console.log("Loading Alerts...");
+
+    try {
+
+        const response = await fetch(
+            "http://localhost:5000/api/alerts",
+            {
+                cache: "no-store"
+            }
+        );
+
+        console.log(
+            "Alerts API Status:",
+            response.status
+        );
+
+        const alerts = await response.json();
+
+        console.log(
+            "Alerts Received:",
+            alerts
+        );
+
+        const container =
+            document.getElementById(
+                "alertsContainer"
+            );
+
+        console.log(
+            "Container Found:",
+            container
+        );
+
+        if (!container) {
+            console.error(
+                "alertsContainer NOT FOUND"
+            );
+            return;
+        }
+
+        if (!alerts || alerts.length === 0) {
+
+            container.innerHTML = `
+                <div class="card">
+                    No Active Alerts
+                </div>
+            `;
+
+            return;
+        }
+
+        container.innerHTML = "";
+
+        alerts.forEach(alert => {
+
+            container.innerHTML += `
+                <div class="card">
+
+                    <h3>
+                        ⚠ ${alert.Title}
+                    </h3>
+
+                    <p>
+                        ${alert.Description}
+                    </p>
+
+                    <p>
+                        <strong>Location:</strong>
+                        ${alert.Location_Name}
+                    </p>
+
+                    <p>
+                        <strong>Severity:</strong>
+                        ${alert.Severity}
+                    </p>
+
+                </div>
+            `;
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Load Alerts Error:",
+            error
+        );
+
+    }
 }
 
 async function updateStatus(reportId) {
-    const newStatus = document.getElementById(`status-${reportId}`).value;
+
+    const newStatus =
+        document.getElementById(
+            `status-${reportId}`
+        ).value;
 
     try {
+
         const response = await fetch(
             `http://localhost:5000/api/reports/${reportId}/status`,
             {
@@ -134,12 +236,17 @@ async function updateStatus(reportId) {
             }
         );
 
-        const data = await response.json();
+        const data =
+            await response.json();
+
         alert(data.message);
-        await loadReports();
+
+        loadReports();
 
     } catch (error) {
+
         console.error(error);
+
     }
 }
 
@@ -147,13 +254,12 @@ function viewReport(reportId) {
 
     window.location.href =
         `report-details.html?id=${reportId}`;
-
 }
 
 async function assignResource(reportId) {
 
     const resourceId = prompt(
-        "Enter Resource ID to assign:\n\n1 = Ambulance\n2 = Medical Kit\n3 = Relief Truck\n4 = Fire Brigade"
+        "Enter Resource ID:\n1 = Ambulance\n2 = Medical Kit\n3 = Relief Truck\n4 = Fire Brigade"
     );
 
     if (!resourceId) return;
@@ -168,13 +274,14 @@ async function assignResource(reportId) {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    reportId: reportId,
+                    reportId,
                     resourceId: parseInt(resourceId)
                 })
             }
         );
 
-        const data = await response.json();
+        const data =
+            await response.json();
 
         alert(data.message);
 
@@ -183,7 +290,10 @@ async function assignResource(reportId) {
         console.error(error);
 
         alert("Assignment Failed");
-
     }
-
 }
+
+document.addEventListener(
+    "DOMContentLoaded",
+    loadReports
+);

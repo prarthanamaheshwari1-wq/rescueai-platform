@@ -4,18 +4,20 @@ const axios = require("axios");
 const { sql } = require("../config/db");
 
 router.get("/", async (req, res) => {
+
     try {
+
         const city = req.query.city || "Delhi";
         const apiKey = process.env.OPENWEATHER_API_KEY;
 
         if (!apiKey) {
-            console.error("OPENWEATHER_API_KEY is missing in process.env!");
+
             return res.status(500).json({
-                message: "Server configuration error: Missing API Key"
+                message: "OPENWEATHER_API_KEY missing"
             });
+
         }
 
-        // Fetch weather data from OpenWeather API
         const response = await axios.get(
             `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`
         );
@@ -33,50 +35,67 @@ router.get("/", async (req, res) => {
 
         // Heatwave Detection
         if (weatherData.temperature >= 40) {
+
             riskLevel = "High";
             disasterType = "Heatwave";
+
         }
 
         // Storm Detection
         if (weatherData.windSpeed >= 20) {
+
             riskLevel = "High";
             disasterType = "Storm";
+
         }
 
         // Flood Detection
         if (
-            weatherData.condition.toLowerCase().includes("rain") &&
-            weatherData.humidity >= 80
+            weatherData.condition.toLowerCase().includes("rain")
+            && weatherData.humidity >= 80
         ) {
+
             riskLevel = "High";
             disasterType = "Flood";
+
         }
 
-        // Isolated Database Block (Prevents DB errors from failing the whole endpoint)
         if (disasterType !== "None") {
+
             try {
-                const checkRequest = new sql.Request();
-                checkRequest.input("DisasterType", sql.NVarChar, disasterType);
 
-                const existingAlert = await checkRequest.query(`
-                    SELECT TOP 1 *
-                    FROM Disaster_Events
-                    WHERE Disaster_Type = @DisasterType
-                    AND LOWER(Status) = 'active'
-                `);
+                // -------------------------------------------------------------
+                // 1. ATOMIC DISASTER EVENT CHECK & INSERT
+                // -------------------------------------------------------------
 
-                if (true) {
-                    const insertRequest = new sql.Request();
+                const disasterQuery = new sql.Request();
 
-                    insertRequest.input("DisasterType", sql.NVarChar, disasterType);
-                    insertRequest.input("DisasterName", sql.NVarChar, `Automatic ${disasterType} Alert`);
-                    insertRequest.input(
-                        "Description",
-                        sql.NVarChar,
-                        `Generated automatically by RescueAI Weather Monitoring System`
-                    );
+                disasterQuery.input(
+                    "DisasterType",
+                    sql.NVarChar,
+                    disasterType
+                );
 
-                    await insertRequest.query(`
+                disasterQuery.input(
+                    "DisasterName",
+                    sql.NVarChar,
+                    `Automatic ${disasterType} Alert`
+                );
+
+                disasterQuery.input(
+                    "Description",
+                    sql.NVarChar,
+                    `Generated automatically by RescueAI Weather Monitoring System`
+                );
+
+                await disasterQuery.query(`
+                    IF NOT EXISTS (
+                        SELECT 1 
+                        FROM Disaster_Events 
+                        WHERE Disaster_Type = @DisasterType 
+                        AND LOWER(Status) = 'active'
+                    )
+                    BEGIN
                         INSERT INTO Disaster_Events
                         (
                             Disaster_Type,
@@ -94,42 +113,55 @@ router.get("/", async (req, res) => {
                             GETDATE(),
                             DATEADD(day, 3, GETDATE()),
                             'active'
-                        )
-                    `);
+                        );
+                    END
+                `);
 
-                    const alertRequest = new sql.Request();
+                // -------------------------------------------------------------
+                // 2. ATOMIC ALERT CHECK & INSERT (Prevents Race Conditions)
+                // -------------------------------------------------------------
 
-                    alertRequest.input(
-                        "Title",
-                        sql.NVarChar,
-                        `${disasterType} Warning`
-                    );
+                const alertQuery = new sql.Request();
 
-                    alertRequest.input(
-                        "Description",
-                        sql.NVarChar,
-                        `Potential ${disasterType} detected by RescueAI Weather Monitoring System`
-                    );
+                alertQuery.input(
+                    "Title",
+                    sql.NVarChar,
+                    `${disasterType} Warning`
+                );
 
-                    alertRequest.input(
-                        "AlertType",
-                        sql.NVarChar,
-                        "Weather"
-                    );
+                alertQuery.input(
+                    "Description",
+                    sql.NVarChar,
+                    `Potential ${disasterType} detected by RescueAI Weather Monitoring System`
+                );
 
-                    alertRequest.input(
-                        "Severity",
-                        sql.NVarChar,
-                        "High"
-                    );
+                alertQuery.input(
+                    "AlertType",
+                    sql.NVarChar,
+                    "Weather"
+                );
 
-                    alertRequest.input(
-                        "LocationName",
-                        sql.NVarChar,
-                        city
-                    );
+                alertQuery.input(
+                    "Severity",
+                    sql.NVarChar,
+                    "High"
+                );
 
-                    await alertRequest.query(`
+                alertQuery.input(
+                    "LocationName",
+                    sql.NVarChar,
+                    city
+                );
+
+                const alertResult = await alertQuery.query(`
+                    IF NOT EXISTS (
+                        SELECT 1 
+                        FROM Alerts 
+                        WHERE Title = @Title 
+                        AND Location_Name = @LocationName 
+                        AND UPPER(Status) = 'ACTIVE'
+                    )
+                    BEGIN
                         INSERT INTO Alerts
                         (
                             Title,
@@ -147,15 +179,39 @@ router.get("/", async (req, res) => {
                             @Severity,
                             @LocationName,
                             'Active'
-                        )
-                    `);
+                        );
 
-                    console.log(`Automatic ${disasterType} alert created in database.`);
+                        SELECT 1 AS Inserted;
+                    END
+                    ELSE
+                    BEGIN
+                        SELECT 0 AS Inserted;
+                    END
+                `);
+
+                if (alertResult.recordset[0]?.Inserted === 1) {
+
+                    console.log(
+                        `${disasterType} alert created for ${city}`
+                    );
+
+                } else {
+
+                    console.log(
+                        `Alert for ${city} (${disasterType}) already active. Skipping insert.`
+                    );
+
                 }
+
             } catch (dbError) {
-                console.error("Disaster_Events DB Operation Failed:", dbError.message);
-                // DB logging failed, but weather data can still return cleanly
+
+                console.error(
+                    "Database Operation Failed:",
+                    dbError.message
+                );
+
             }
+
         }
 
         res.json({
@@ -165,18 +221,32 @@ router.get("/", async (req, res) => {
         });
 
     } catch (error) {
+
         if (error.response) {
-            console.error("OpenWeather API Error Status:", error.response.status);
-            console.error("OpenWeather API Error Data:", error.response.data);
+
+            console.error(
+                "OpenWeather Error:",
+                error.response.data
+            );
+
         } else {
-            console.error("Weather Route Network/Server Error:", error.message);
+
+            console.error(
+                "Weather Route Error:",
+                error.message
+            );
+
         }
 
         res.status(500).json({
             message: "Weather data fetch failed",
-            details: error.response?.data?.message || error.message
+            details:
+                error.response?.data?.message ||
+                error.message
         });
+
     }
+
 });
 
 module.exports = router;
