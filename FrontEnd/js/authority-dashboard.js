@@ -100,6 +100,7 @@ async function loadReports() {
         });
 
         console.log("Table render complete!");
+        await loadAlerts();
     } catch (error) {
         console.error("X. Error in loadReports:", error.message);
     }
