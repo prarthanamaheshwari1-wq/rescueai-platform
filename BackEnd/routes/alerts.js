@@ -51,4 +51,45 @@ router.get("/", async (req, res) => {
     }
 });
 
+// PUT /api/alerts/:id/resolve
+
+router.put("/:id/resolve", async (req, res) => {
+
+    try {
+
+        const alertId = req.params.id;
+
+        const request = new sql.Request();
+
+        request.input(
+            "AlertId",
+            sql.Int,
+            alertId
+        );
+
+        await request.query(`
+            UPDATE Alerts
+            SET Status = 'Resolved'
+            WHERE Alert_id = @AlertId
+        `);
+
+        return res.status(200).json({
+            message: "Alert resolved successfully"
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Resolve Alert Error:",
+            error.message
+        );
+
+        return res.status(500).json({
+            message: "Failed to resolve alert"
+        });
+
+    }
+
+});
+
 module.exports = router;

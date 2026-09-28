@@ -200,6 +200,10 @@ async function loadAlerts() {
                         ${alert.Severity}
                     </p>
 
+                    <button onclick="resolveAlert(${alert.Alert_id})">
+                        Resolve Alert
+                    </button>
+
                 </div>
             `;
         });
@@ -291,6 +295,34 @@ async function assignResource(reportId) {
 
         alert("Assignment Failed");
     }
+}
+
+async function resolveAlert(alertId) {
+
+    try {
+
+        const response = await fetch(
+            `http://localhost:5000/api/alerts/${alertId}/resolve`,
+            {
+                method: "PUT"
+            }
+        );
+
+        const data = await response.json();
+
+        alert(data.message);
+
+        await loadAlerts();
+
+    } catch (error) {
+
+        console.error(
+            "Resolve Alert Error:",
+            error
+        );
+
+    }
+
 }
 
 document.addEventListener(
