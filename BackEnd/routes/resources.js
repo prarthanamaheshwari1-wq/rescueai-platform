@@ -161,8 +161,7 @@ router.put("/:resourceId/status", async (req, res) => {
         `);
 
         res.status(200).json({
-            message:
-                "Resource status updated"
+            message: "Resource status updated"
         });
 
     }
@@ -195,6 +194,20 @@ router.post("/assign", async (req, res) => {
             resourceId
         } = req.body;
 
+
+        // ==========================================
+        // DEBUG LOG
+        // ==========================================
+
+        console.log(
+            "ASSIGN RESOURCE REQUEST:",
+            {
+                reportId,
+                resourceId
+            }
+        );
+
+
         const request = new sql.Request();
 
         request.input(
@@ -209,6 +222,85 @@ router.post("/assign", async (req, res) => {
             resourceId
         );
 
+
+        // ==========================================
+        // CHECK RESOURCE EXISTS + STATUS
+        // ==========================================
+
+        const resourceResult = await request.query(`
+            SELECT
+                Resource_id,
+                Resource_Name,
+                Status
+            FROM Resources
+            WHERE Resource_id = @ResourceId
+        `);
+
+
+        if (resourceResult.recordset.length === 0) {
+
+            console.log(
+                "RESOURCE NOT FOUND:",
+                resourceId
+            );
+
+            return res.status(404).json({
+                message: "Resource not found"
+            });
+
+        }
+
+
+        const resource =
+            resourceResult.recordset[0];
+
+
+        // ==========================================
+        // DEBUG RESOURCE STATUS
+        // ==========================================
+
+        console.log(
+            "RESOURCE STATUS:",
+            {
+                Resource_id: resource.Resource_id,
+                Resource_Name: resource.Resource_Name,
+                Status: resource.Status
+            }
+        );
+
+
+        // ==========================================
+        // PREVENT DUPLICATE DEPLOYMENT
+        // ==========================================
+
+        const currentStatus = String(
+            resource.Status || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+        if (currentStatus === "deployed") {
+
+            console.log(
+                "BLOCKING DEPLOYED RESOURCE:",
+                resource.Resource_id
+            );
+
+            return res.status(400).json({
+
+                message:
+                    "This resource is already deployed and cannot be assigned again."
+
+            });
+
+        }
+
+
+        // ==========================================
+        // CREATE ASSIGNMENT
+        // ==========================================
+
         await request.query(`
             INSERT INTO Resource_Assignments
             (
@@ -222,15 +314,32 @@ router.post("/assign", async (req, res) => {
             )
         `);
 
+
+        // ==========================================
+        // UPDATE RESOURCE STATUS
+        // ==========================================
+
         await request.query(`
             UPDATE Resources
             SET Status = 'Deployed'
             WHERE Resource_id = @ResourceId
         `);
 
-        res.status(200).json({
+
+        console.log(
+            "RESOURCE ASSIGNED SUCCESSFULLY:",
+            {
+                reportId,
+                resourceId
+            }
+        );
+
+
+        return res.status(200).json({
+
             message:
                 "Resource assigned successfully"
+
         });
 
     }
@@ -241,8 +350,11 @@ router.post("/assign", async (req, res) => {
             error
         );
 
-        res.status(500).json({
-            message: "Server Error"
+        return res.status(500).json({
+
+            message:
+                "Server Error"
+
         });
 
     }

@@ -59,15 +59,33 @@
                     <p>Available Resources</p>
                 </div>
 
+                <div class="card">
+                    <h2 id="deployedResources">0</h2>
+                    <p>Deployed Resources</p>
+                </div>
+
+                <div class="card">
+                    <h2 id="resourceTypes">0</h2>
+                    <p>Resource Types</p>
+                </div>
+
             </div>
 
         </div>
 
         <div class="chart-container">
 
-            <h2>Resource Analytics</h2>
+            <h2>Resource Type Analytics</h2>
 
             <canvas id="resourceChart"></canvas>
+
+        </div>
+
+        <div class="chart-container">
+
+            <h2>Resource Status Analytics</h2>
+
+            <canvas id="resourceStatusChart"></canvas>
 
         </div>
 
@@ -90,6 +108,32 @@
             </tbody>
 
         </table>
+
+        <div class="assignments-section">
+
+            <h2>📋 Assigned Resources</h2>
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Assignment ID</th>
+                        <th>Report ID</th>
+                        <th>Resource</th>
+                        <th>Type</th>
+                        <th>Quantity</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody id="assignmentsTableBody">
+
+                </tbody>
+
+            </table>
+
+        </div>
 
     </div>
 
