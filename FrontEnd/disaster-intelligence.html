@@ -1,16 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Disaster Intelligence</title>
     <link rel="stylesheet" href="css/disaster-intelligence.css">
 </head>
+
 <body>
 
     <div class="container">
 
         <h1>🌍 Disaster Intelligence Dashboard</h1>
+
+        <a href="map-dashboard.html" class="map-btn">
+            🗺️ Open Live Disaster Map
+        </a>
+
+        <button onclick="loadEvents()" class="refresh-btn">
+            🔄 Refresh Intelligence
+        </button>
+
+        <div class="stats-container">
+
+            <div class="stat-card">
+                <h2 id="totalEvents">0</h2>
+                <p>Total Events</p>
+            </div>
+
+            <div class="stat-card">
+                <h2 id="activeEvents">0</h2>
+                <p>Active Events</p>
+            </div>
+
+            <div class="stat-card">
+                <h2 id="floodEvents">0</h2>
+                <p>Flood Events</p>
+            </div>
+
+            <div class="stat-card">
+                <h2 id="stormEvents">0</h2>
+                <p>Storm Events</p>
+            </div>
+
+        </div>
+
+        <div class="risk-container">
+
+            <div class="risk-card high-risk">
+                <h2 id="highRisk">0</h2>
+                <p>High Risk</p>
+            </div>
+
+            <div class="risk-card medium-risk">
+                <h2 id="mediumRisk">0</h2>
+                <p>Medium Risk</p>
+            </div>
+
+            <div class="risk-card low-risk">
+                <h2 id="lowRisk">0</h2>
+                <p>Low Risk</p>
+            </div>
+
+        </div>
 
         <div id="eventsContainer"></div>
 
@@ -19,4 +72,5 @@
     <script src="js/disaster-intelligence.js"></script>
 
 </body>
+
 </html>

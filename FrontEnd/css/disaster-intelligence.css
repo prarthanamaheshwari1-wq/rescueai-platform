@@ -1,29 +1,250 @@
-body{
+body {
     font-family: Arial, sans-serif;
-    background:#f4f6f9;
-    margin:0;
-    padding:20px;
+    background: #f4f6f9;
+    margin: 0;
+    padding: 20px;
 }
 
-.container{
-    max-width:1200px;
-    margin:auto;
+.container {
+    max-width: 1200px;
+    margin: auto;
 }
 
-h1{
-    text-align:center;
-    margin-bottom:30px;
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
 }
 
-.event-card{
-    background:white;
-    border-left:6px solid #dc3545;
-    padding:20px;
-    margin-bottom:20px;
-    border-radius:10px;
-    box-shadow:0 2px 10px rgba(0,0,0,0.1);
+
+/* ==============================
+   STATISTICS
+   ============================== */
+
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 30px;
 }
 
-.event-card h3{
-    margin-top:0;
+.stat-card {
+    background: white;
+    padding: 25px 20px;
+    text-align: center;
+    border-radius: 12px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12);
+    border-top: 5px solid #dc3545;
+}
+
+.stat-card h2 {
+    margin: 0;
+    font-size: 32px;
+    color: #dc3545;
+}
+
+.stat-card p {
+    margin: 10px 0 0;
+    font-size: 15px;
+    font-weight: bold;
+    color: #555;
+}
+
+
+/* ==============================
+   EVENT CARDS
+   ============================== */
+
+.event-card {
+    background: white;
+    border-left: 6px solid #dc3545;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.event-card h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #222;
+}
+
+.event-card p {
+    margin: 10px 0;
+    color: #444;
+}
+
+
+/* ==============================
+   RESPONSIVE
+   ============================== */
+
+@media (max-width: 900px) {
+
+    .stats-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+}
+
+@media (max-width: 600px) {
+
+    .stats-container {
+        grid-template-columns: 1fr;
+    }
+
+    body {
+        padding: 10px;
+    }
+
+}
+
+.map-btn {
+    display: block;
+    width: fit-content;
+    margin: 0 auto 30px;
+
+    padding: 12px 24px;
+
+    background: #dc3545;
+    color: white;
+
+    text-decoration: none;
+    font-weight: bold;
+
+    border-radius: 8px;
+
+    transition: 0.3s;
+}
+
+.map-btn:hover {
+    background: #b02a37;
+}
+
+/* ==============================
+   DISASTER TYPE COLORS
+   ============================== */
+
+.event-card.flood {
+    border-left-color: #007bff;
+}
+
+.event-card.storm {
+    border-left-color: #6f42c1;
+}
+
+.event-card.heatwave {
+    border-left-color: #fd7e14;
+}
+
+.event-card.earthquake {
+    border-left-color: #dc3545;
+}
+
+/* ==============================
+   EVENT STATUS
+   ============================== */
+
+.event-status {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.event-status.active {
+    background: #ffe5e5;
+    color: #dc3545;
+}
+
+.event-status.resolved {
+    background: #e6f7ed;
+    color: #198754;
+}
+
+.event-status.pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.refresh-btn {
+    display: block;
+    margin: -15px auto 30px;
+
+    padding: 10px 22px;
+
+    background: #198754;
+    color: white;
+
+    border: none;
+    border-radius: 8px;
+
+    font-weight: bold;
+    cursor: pointer;
+
+    transition: 0.3s;
+}
+
+.refresh-btn:hover {
+    background: #146c43;
+}
+
+/* ==============================
+   RISK SUMMARY
+   ============================== */
+
+.risk-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.risk-card {
+    background: white;
+    padding: 20px;
+    text-align: center;
+    border-radius: 12px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12);
+}
+
+.risk-card h2 {
+    margin: 0;
+    font-size: 30px;
+}
+
+.risk-card p {
+    margin: 8px 0 0;
+    font-weight: bold;
+}
+
+/* High Risk */
+
+.high-risk {
+    border-top: 5px solid #dc3545;
+}
+
+.high-risk h2 {
+    color: #dc3545;
+}
+
+/* Medium Risk */
+
+.medium-risk {
+    border-top: 5px solid #fd7e14;
+}
+
+.medium-risk h2 {
+    color: #fd7e14;
+}
+
+/* Low Risk */
+
+.low-risk {
+    border-top: 5px solid #198754;
+}
+
+.low-risk h2 {
+    color: #198754;
 }

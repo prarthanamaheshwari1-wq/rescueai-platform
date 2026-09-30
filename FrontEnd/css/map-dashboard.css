@@ -79,8 +79,9 @@ h1{
     margin: 6px 0;
 }
 
-.red-dot,
-.green-dot,
+.high-dot,
+.medium-dot,
+.low-dot,
 .blue-dot{
     display: inline-block;
 
@@ -92,14 +93,186 @@ h1{
     margin-right: 8px;
 }
 
-.red-dot{
+.high-dot{
     background: red;
 }
 
-.green-dot{
+.medium-dot{
+    background: orange;
+}
+
+.low-dot{
     background: green;
 }
 
 .blue-dot{
     background: blue;
+}
+
+/* ==============================
+   MAP FILTER
+   ============================== */
+
+.map-filters {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.map-filters label {
+    font-weight: bold;
+    color: #333;
+    font-size: 15px;
+}
+
+#severityFilter {
+    padding: 10px 16px;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    background: white;
+    color: #333;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    transition: 0.3s;
+}
+
+#severityFilter:hover {
+    border-color: #dc3545;
+}
+
+#severityFilter:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.12);
+}
+
+/* ==============================
+   WEATHER INTELLIGENCE
+   ============================== */
+
+.weather-panel {
+    background: white;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 12px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12);
+    border-left: 5px solid #0d6efd;
+}
+
+.weather-panel h2 {
+    margin: 0 0 18px 0;
+    text-align: center;
+    color: #222;
+    font-size: 20px;
+}
+
+/* ==============================
+   WEATHER CITY SEARCH
+   ============================== */
+
+.weather-search {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+#mapWeatherCityInput {
+    width: 300px;
+    padding: 11px 14px;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    background: white;
+    color: #333;
+    font-size: 14px;
+    outline: none;
+    transition: 0.3s;
+    box-sizing: border-box;
+}
+
+#mapWeatherCityInput::placeholder {
+    color: #888;
+}
+
+#mapWeatherCityInput:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.12);
+}
+
+.weather-search button {
+    padding: 11px 20px;
+    border: none;
+    border-radius: 8px;
+    background: #0d6efd;
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.weather-search button:hover {
+    background: #0b5ed7;
+}
+
+.weather-info {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 15px;
+}
+
+.weather-info div {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.weather-info span {
+    display: block;
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 6px;
+}
+
+.weather-info strong {
+    display: block;
+    font-size: 16px;
+    color: #222;
+}
+
+/* Responsive Weather Panel */
+
+@media (max-width: 900px) {
+
+    .weather-info {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+}
+
+@media (max-width: 600px) {
+
+    .weather-search {
+        flex-direction: column;
+    }
+
+    #mapWeatherCityInput {
+        width: 100%;
+        max-width: 350px;
+    }
+
+    .weather-search button {
+        width: 100%;
+        max-width: 350px;
+    }
+
+    .weather-info {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
 }

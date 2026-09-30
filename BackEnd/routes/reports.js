@@ -30,37 +30,37 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
         request.input("PhotoPath", sql.NVarChar(500), photoPath);
 
         await request.query(`
-    INSERT INTO Incident_Reports
-    (
-        User_id,
-        Disaster_id,
-        Title,
-        Description,
-        Category,
-        Severity,
-        Priority,
-        Location_Name,
-        Latitude,
-        Longitude,
-        Status,
-        Photo_Path
-    )
-    VALUES
-    (
-        NULL,
-        NULL,
-        @Title,
-        @Description,
-        @Category,
-        @Severity,
-        'Pending',
-        @LocationName,
-        @Latitude,
-        @Longitude,
-        'Submitted',
-        @PhotoPath
-    )
-`);
+            INSERT INTO Incident_Reports
+            (
+                User_id,
+                Disaster_id,
+                Title,
+                Description,
+                Category,
+                Severity,
+                Priority,
+                Location_Name,
+                Latitude,
+                Longitude,
+                Status,
+                Photo_Path
+            )
+            VALUES
+            (
+                NULL,
+                NULL,
+                @Title,
+                @Description,
+                @Category,
+                @Severity,
+                'Pending',
+                @LocationName,
+                @Latitude,
+                @Longitude,
+                'Submitted',
+                @PhotoPath
+            )
+        `);
 
         const idRequest = new sql.Request();
 
@@ -69,13 +69,13 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
         idRequest.input("PhotoPath", sql.NVarChar(500), photoPath);
 
         const idResult = await idRequest.query(`
-    SELECT TOP 1 Report_id
-    FROM Incident_Reports
-    WHERE Title = @Title
-      AND Description = @Description
-      AND Photo_Path = @PhotoPath
-    ORDER BY Report_id DESC
-`);
+            SELECT TOP 1 Report_id
+            FROM Incident_Reports
+            WHERE Title = @Title
+              AND Description = @Description
+              AND Photo_Path = @PhotoPath
+            ORDER BY Report_id DESC
+        `);
 
         const reportId = idResult.recordset[0]?.Report_id || null;
 
@@ -186,27 +186,27 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
         aiRequest.input("AIRecommendation", sql.NVarChar, aiRecommendation);
 
         await aiRequest.query(`
-    INSERT INTO AI_Analysis
-    (
-        Report_id,
-        AI_Category,
-        AI_Severity,
-        AI_Priority,
-        Misinformation_Score,
-        AI_Summary,
-        AI_Recommendation
-    )
-    VALUES
-    (
-        @ReportId,
-        @AICategory,
-        @AISeverity,
-        @AIPriority,
-        @MIScore,
-        @AISummary,
-        @AIRecommendation
-    )
-`);
+            INSERT INTO AI_Analysis
+            (
+                Report_id,
+                AI_Category,
+                AI_Severity,
+                AI_Priority,
+                Misinformation_Score,
+                AI_Summary,
+                AI_Recommendation
+            )
+            VALUES
+            (
+                @ReportId,
+                @AICategory,
+                @AISeverity,
+                @AIPriority,
+                @MIScore,
+                @AISummary,
+                @AIRecommendation
+            )
+        `);
 
         res.status(201).json({
             message: "Emergency report submitted successfully",
@@ -215,13 +215,18 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
         });
 
     } catch (error) {
+
         console.error("Emergency Report Error:", error);
 
         res.status(500).json({
             message: "Server Error"
         });
+
     }
 });
+
+
+// Get all reports
 
 router.get("/", async (req, res) => {
 
@@ -248,6 +253,9 @@ router.get("/", async (req, res) => {
     }
 
 });
+
+
+// Get pending reports
 
 router.get("/pending", async (req, res) => {
 
@@ -298,6 +306,9 @@ router.get("/pending", async (req, res) => {
 
 });
 
+
+// Verify report
+
 router.put("/:reportId/verify", async (req, res) => {
 
     try {
@@ -333,6 +344,9 @@ router.put("/:reportId/verify", async (req, res) => {
     }
 
 });
+
+
+// Reject report
 
 router.put("/:reportId/reject", async (req, res) => {
 
@@ -370,12 +384,74 @@ router.put("/:reportId/reject", async (req, res) => {
 
 });
 
+
+// Get risk summary
+// IMPORTANT: This route must come before /:reportId
+
+router.get("/risk-summary", async (req, res) => {
+
+    try {
+
+        const request = new sql.Request();
+
+        const result = await request.query(`
+            SELECT
+
+                SUM(
+                    CASE
+                        WHEN LOWER(LTRIM(RTRIM(Severity))) = 'high'
+                        THEN 1
+                        ELSE 0
+                    END
+                ) AS HighRisk,
+
+                SUM(
+                    CASE
+                        WHEN LOWER(LTRIM(RTRIM(Severity))) = 'medium'
+                        THEN 1
+                        ELSE 0
+                    END
+                ) AS MediumRisk,
+
+                SUM(
+                    CASE
+                        WHEN LOWER(LTRIM(RTRIM(Severity))) = 'low'
+                        THEN 1
+                        ELSE 0
+                    END
+                ) AS LowRisk
+
+            FROM Incident_Reports
+        `);
+
+        res.status(200).json(
+            result.recordset[0]
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Risk Summary Error:",
+            error
+        );
+
+        res.status(500).json({
+            message: "Server Error"
+        });
+
+    }
+
+});
+
+
 // Get report by Report ID
-// Get report by Report ID
-// Get report by Report ID
+
 router.get("/:reportId", async (req, res) => {
 
-    console.log("=== GET REPORT DETAILS HIT ===", req.params.reportId);
+    console.log(
+        "=== GET REPORT DETAILS HIT ===",
+        req.params.reportId
+    );
 
     try {
 
@@ -476,8 +552,11 @@ router.get("/:reportId", async (req, res) => {
 
 });
 
+
 // Update report status
+
 router.put("/:reportId/status", async (req, res) => {
+
     try {
 
         console.log("NEW REPORT DETAILS ROUTE HIT");
@@ -487,8 +566,17 @@ router.put("/:reportId/status", async (req, res) => {
 
         const request = new sql.Request();
 
-        request.input("ReportId", sql.Int, reportId);
-        request.input("Status", sql.NVarChar, status);
+        request.input(
+            "ReportId",
+            sql.Int,
+            reportId
+        );
+
+        request.input(
+            "Status",
+            sql.NVarChar,
+            status
+        );
 
         await request.query(`
             UPDATE Incident_Reports
@@ -502,13 +590,21 @@ router.put("/:reportId/status", async (req, res) => {
 
     } catch (error) {
 
-        console.error("Update Status Error:", error);
+        console.error(
+            "Update Status Error:",
+            error
+        );
 
         res.status(500).json({
             message: "Server Error"
         });
+
     }
+
 });
+
+
+// Assign resource
 
 router.post("/:reportId/assign-resource", async (req, res) => {
 
@@ -595,6 +691,9 @@ router.post("/:reportId/assign-resource", async (req, res) => {
 
 });
 
+
+// Assign volunteer
+
 router.post("/:reportId/assign-volunteer", async (req, res) => {
 
     try {
@@ -678,4 +777,3 @@ router.post("/:reportId/assign-volunteer", async (req, res) => {
 
 
 module.exports = router;
-

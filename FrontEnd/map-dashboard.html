@@ -41,14 +41,86 @@
 
         </div>
 
+        <div class="map-filters">
+
+            <label for="severityFilter">
+                Filter by Severity:
+            </label>
+
+            <select id="severityFilter">
+                <option value="All">All Incidents</option>
+                <option value="High">High Risk</option>
+                <option value="Medium">Medium Risk</option>
+                <option value="Low">Low Risk</option>
+            </select>
+
+        </div>
+
+        <div class="weather-panel">
+
+            <h2>🌦️ Weather Intelligence</h2>
+
+            <!-- Weather City Search -->
+            <div class="weather-search">
+
+                <input
+                    type="text"
+                    id="mapWeatherCityInput"
+                    placeholder="Enter city name"
+                >
+
+                <button onclick="searchMapWeather()">
+                    🔍 Search
+                </button>
+
+            </div>
+
+            <div class="weather-info">
+
+                <div>
+                    <span>📍 City</span>
+                    <strong id="mapWeatherCity">Loading...</strong>
+                </div>
+
+                <div>
+                    <span>🌡 Temperature</span>
+                    <strong id="mapWeatherTemperature">Loading...</strong>
+                </div>
+
+                <div>
+                    <span>💧 Humidity</span>
+                    <strong id="mapWeatherHumidity">Loading...</strong>
+                </div>
+
+                <div>
+                    <span>💨 Wind</span>
+                    <strong id="mapWeatherWind">Loading...</strong>
+                </div>
+
+                <div>
+                    <span>⚠️ Risk</span>
+                    <strong id="mapWeatherRisk">Loading...</strong>
+                </div>
+
+                <div>
+                    <span>🚨 Disaster</span>
+                    <strong id="mapWeatherDisaster">Loading...</strong>
+                </div>
+
+            </div>
+
+        </div>
+
         <div class="map-container">
 
             <div class="legend">
                 <h4>Map Legend</h4>
 
-                <p><span class="red-dot"></span> Submitted / Pending</p>
+                <p><span class="high-dot"></span> High Severity</p>
 
-                <p><span class="green-dot"></span> Verified</p>
+                <p><span class="medium-dot"></span> Medium Severity</p>
+
+                <p><span class="low-dot"></span> Low Severity</p>
 
                 <p><span class="blue-dot"></span> Resources</p>
             </div>
