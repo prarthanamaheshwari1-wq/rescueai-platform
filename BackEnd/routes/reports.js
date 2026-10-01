@@ -4,8 +4,15 @@ const router = express.Router();
 const { sql } = require("../config/db");
 const upload = require("../middleware/upload");
 
+const {
+    generateReportSafely
+} = require("../services/gemini");
+
+
+
 router.post("/emergency", upload.single("photo"), async (req, res) => {
     try {
+
         const {
             title,
             description,
@@ -16,18 +23,36 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
             longitude
         } = req.body;
 
-        const photoPath = req.file ? `uploads/${req.file.filename}` : null;
+
+        const photoPath = req.file
+            ? `uploads/${req.file.filename}`
+            : null;
+
 
         const request = new sql.Request();
+
 
         request.input("Title", sql.NVarChar, title);
         request.input("Description", sql.NVarChar, description);
         request.input("Category", sql.NVarChar, category);
         request.input("Severity", sql.NVarChar, severity);
         request.input("LocationName", sql.NVarChar, locationName);
-        request.input("Latitude", sql.Decimal(10, 6), latitude);
-        request.input("Longitude", sql.Decimal(10, 6), longitude);
-        request.input("PhotoPath", sql.NVarChar(500), photoPath);
+        request.input(
+            "Latitude",
+            sql.Decimal(10, 6),
+            latitude
+        );
+        request.input(
+            "Longitude",
+            sql.Decimal(10, 6),
+            longitude
+        );
+        request.input(
+            "PhotoPath",
+            sql.NVarChar(500),
+            photoPath
+        );
+
 
         await request.query(`
             INSERT INTO Incident_Reports
@@ -62,11 +87,27 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
             )
         `);
 
+
         const idRequest = new sql.Request();
 
-        idRequest.input("Title", sql.NVarChar, title);
-        idRequest.input("Description", sql.NVarChar, description);
-        idRequest.input("PhotoPath", sql.NVarChar(500), photoPath);
+        idRequest.input(
+            "Title",
+            sql.NVarChar,
+            title
+        );
+
+        idRequest.input(
+            "Description",
+            sql.NVarChar,
+            description
+        );
+
+        idRequest.input(
+            "PhotoPath",
+            sql.NVarChar(500),
+            photoPath
+        );
+
 
         const idResult = await idRequest.query(`
             SELECT TOP 1 Report_id
@@ -77,9 +118,15 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
             ORDER BY Report_id DESC
         `);
 
-        const reportId = idResult.recordset[0]?.Report_id || null;
 
-        // AI Analysis Generation
+        const reportId =
+            idResult.recordset[0]?.Report_id || null;
+
+
+
+        // ==========================================
+        // AI ANALYSIS GENERATION
+        // ==========================================
 
         let aiCategory = category;
         let aiSeverity = severity;
@@ -89,7 +136,11 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
         let aiRecommendation = "";
         let misinformationScore = 0;
 
-        // Misinformation Detection
+
+
+        // ==========================================
+        // MISINFORMATION DETECTION
+        // ==========================================
 
         const suspiciousWords = [
             "alien",
@@ -103,8 +154,10 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
             "end of world"
         ];
 
+
         const reportText =
             `${title} ${description}`.toLowerCase();
+
 
         suspiciousWords.forEach(word => {
 
@@ -116,74 +169,204 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
 
         });
 
+
         // Maximum 100
 
         if (misinformationScore > 100) {
             misinformationScore = 100;
         }
 
-        // Priority Logic
+
+
+        // ==========================================
+        // PRIORITY LOGIC
+        // ==========================================
 
         if (severity === "High") {
+
             aiPriority = "Critical";
+
         }
         else if (severity === "Medium") {
+
             aiPriority = "Moderate";
+
         }
         else {
+
             aiPriority = "Low";
+
         }
 
-        // Category Based Analysis
 
-        if (category === "Fire") {
+
+        // ==========================================
+        // GEMINI AI INCIDENT ANALYSIS
+        // ==========================================
+
+        const prompt = `
+You are RescueAI, an AI disaster-response assistant.
+
+Analyze the following emergency incident:
+
+Title: ${title}
+Description: ${description}
+Category: ${category}
+Reported Severity: ${severity}
+Location: ${locationName}
+
+Provide a practical disaster-response analysis.
+
+Return exactly in this format:
+
+SUMMARY:
+<2-3 sentence incident summary>
+
+RECOMMENDATION:
+<2-4 practical emergency response actions>
+
+IMPORTANT FACTUAL RULES:
+- Treat the Title, Description, Category, Reported Severity, and Location as fixed facts.
+- Never change, replace, or invent the reported location.
+- Never change or replace the reported category or severity.
+- Never introduce a different city, location, category, or severity.
+- Do not invent facts that are not present in the incident.
+- You may provide general safety recommendations, but clearly base them on the information provided.
+- Focus on immediate safety and disaster-response actions.
+`;
+
+
+
+        // ==========================================
+        // SAFE GEMINI CALL
+        // ==========================================
+
+        try {
+
+            const {
+                text: aiText,
+                needsManualReview
+            } = await generateReportSafely(prompt);
+
+
+            // ==========================================
+            // MANUAL REVIEW FALLBACK
+            // ==========================================
+
+            if (needsManualReview) {
+
+                aiSummary =
+                    aiText ||
+                    "AI analysis unavailable. Incident requires manual review.";
+
+                aiRecommendation =
+                    "Verify the incident and follow standard emergency response procedures.";
+
+            }
+            else {
+
+                // ==========================================
+                // EXTRACT SUMMARY
+                // ==========================================
+
+                const summaryMatch =
+                    aiText.match(
+                        /SUMMARY:\s*([\s\S]*?)\s*RECOMMENDATION:/i
+                    );
+
+
+                // ==========================================
+                // EXTRACT RECOMMENDATION
+                // ==========================================
+
+                const recommendationMatch =
+                    aiText.match(
+                        /RECOMMENDATION:\s*([\s\S]*)/i
+                    );
+
+
+                aiSummary =
+                    summaryMatch
+                        ? summaryMatch[1].trim()
+                        : "AI analysis generated successfully.";
+
+
+                aiRecommendation =
+                    recommendationMatch
+                        ? recommendationMatch[1].trim()
+                        : "Follow standard emergency response procedures.";
+
+            }
+
+
+        } catch (aiError) {
+
+            console.error(
+                "Gemini AI Analysis Error:",
+                aiError.message
+            );
+
 
             aiSummary =
-                "High risk fire incident reported.";
+                "AI analysis unavailable. Incident requires manual review.";
+
 
             aiRecommendation =
-                "Dispatch fire brigade immediately and evacuate nearby civilians.";
-
-        }
-        else if (category === "Flood") {
-
-            aiSummary =
-                "Flood risk detected in reported area.";
-
-            aiRecommendation =
-                "Move residents to higher ground and deploy rescue teams.";
-
-        }
-        else if (category === "Earthquake") {
-
-            aiSummary =
-                "Possible earthquake emergency reported.";
-
-            aiRecommendation =
-                "Activate disaster response teams and inspect affected structures.";
-
-        }
-        else {
-
-            aiSummary =
-                "Incident reported for review.";
-
-            aiRecommendation =
-                "Authority verification required.";
+                "Verify the incident and follow standard emergency response procedures.";
 
         }
 
-        // Save AI Analysis
+
+
+        // ==========================================
+        // SAVE AI ANALYSIS
+        // ==========================================
 
         const aiRequest = new sql.Request();
 
-        aiRequest.input("ReportId", sql.Int, reportId);
-        aiRequest.input("AICategory", sql.NVarChar, aiCategory);
-        aiRequest.input("AISeverity", sql.NVarChar, aiSeverity);
-        aiRequest.input("AIPriority", sql.NVarChar, aiPriority);
-        aiRequest.input("MIScore", sql.Decimal(5, 2), misinformationScore);
-        aiRequest.input("AISummary", sql.NVarChar, aiSummary);
-        aiRequest.input("AIRecommendation", sql.NVarChar, aiRecommendation);
+
+        aiRequest.input(
+            "ReportId",
+            sql.Int,
+            reportId
+        );
+
+        aiRequest.input(
+            "AICategory",
+            sql.NVarChar,
+            aiCategory
+        );
+
+        aiRequest.input(
+            "AISeverity",
+            sql.NVarChar,
+            aiSeverity
+        );
+
+        aiRequest.input(
+            "AIPriority",
+            sql.NVarChar,
+            aiPriority
+        );
+
+        aiRequest.input(
+            "MIScore",
+            sql.Decimal(5, 2),
+            misinformationScore
+        );
+
+        aiRequest.input(
+            "AISummary",
+            sql.NVarChar,
+            aiSummary
+        );
+
+        aiRequest.input(
+            "AIRecommendation",
+            sql.NVarChar,
+            aiRecommendation
+        );
+
 
         await aiRequest.query(`
             INSERT INTO AI_Analysis
@@ -208,15 +391,22 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
             )
         `);
 
+
+
         res.status(201).json({
             message: "Emergency report submitted successfully",
             reportId: reportId,
             photoUploaded: !!req.file
         });
 
+
     } catch (error) {
 
-        console.error("Emergency Report Error:", error);
+        console.error(
+            "Emergency Report Error:",
+            error
+        );
+
 
         res.status(500).json({
             message: "Server Error"
@@ -226,7 +416,10 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
 });
 
 
-// Get all reports
+
+// ==========================================
+// GET ALL REPORTS
+// ==========================================
 
 router.get("/", async (req, res) => {
 
@@ -234,17 +427,26 @@ router.get("/", async (req, res) => {
 
         const request = new sql.Request();
 
+
         const result = await request.query(`
             SELECT *
             FROM Incident_Reports
             ORDER BY Report_id DESC
         `);
 
-        res.status(200).json(result.recordset);
+
+        res.status(200).json(
+            result.recordset
+        );
+
 
     } catch (error) {
 
-        console.error("Get Reports Error:", error);
+        console.error(
+            "Get Reports Error:",
+            error
+        );
+
 
         res.status(500).json({
             message: "Server Error"
@@ -255,13 +457,17 @@ router.get("/", async (req, res) => {
 });
 
 
-// Get pending reports
+
+// ==========================================
+// GET PENDING REPORTS
+// ==========================================
 
 router.get("/pending", async (req, res) => {
 
     try {
 
         const request = new sql.Request();
+
 
         const result = await request.query(`
             SELECT
@@ -292,11 +498,16 @@ router.get("/pending", async (req, res) => {
 
         `);
 
-        res.status(200).json(result.recordset);
+
+        res.status(200).json(
+            result.recordset
+        );
+
 
     } catch (error) {
 
         console.error(error);
+
 
         res.status(500).json({
             message: "Server Error"
@@ -307,7 +518,10 @@ router.get("/pending", async (req, res) => {
 });
 
 
-// Verify report
+
+// ==========================================
+// VERIFY REPORT
+// ==========================================
 
 router.put("/:reportId/verify", async (req, res) => {
 
@@ -315,13 +529,16 @@ router.put("/:reportId/verify", async (req, res) => {
 
         const { reportId } = req.params;
 
+
         const request = new sql.Request();
+
 
         request.input(
             "ReportId",
             sql.Int,
             reportId
         );
+
 
         await request.query(`
             UPDATE Incident_Reports
@@ -329,13 +546,16 @@ router.put("/:reportId/verify", async (req, res) => {
             WHERE Report_id = @ReportId
         `);
 
+
         res.json({
             message: "Report Verified"
         });
 
+
     } catch (error) {
 
         console.error(error);
+
 
         res.status(500).json({
             message: "Server Error"
@@ -346,7 +566,10 @@ router.put("/:reportId/verify", async (req, res) => {
 });
 
 
-// Reject report
+
+// ==========================================
+// REJECT REPORT
+// ==========================================
 
 router.put("/:reportId/reject", async (req, res) => {
 
@@ -354,7 +577,9 @@ router.put("/:reportId/reject", async (req, res) => {
 
         const { reportId } = req.params;
 
+
         const request = new sql.Request();
+
 
         request.input(
             "ReportId",
@@ -362,19 +587,23 @@ router.put("/:reportId/reject", async (req, res) => {
             reportId
         );
 
+
         await request.query(`
             UPDATE Incident_Reports
             SET Status = 'Rejected'
             WHERE Report_id = @ReportId
         `);
 
+
         res.json({
             message: "Report Rejected"
         });
 
+
     } catch (error) {
 
         console.error(error);
+
 
         res.status(500).json({
             message: "Server Error"
@@ -385,14 +614,18 @@ router.put("/:reportId/reject", async (req, res) => {
 });
 
 
-// Get risk summary
+
+// ==========================================
+// GET RISK SUMMARY
 // IMPORTANT: This route must come before /:reportId
+// ==========================================
 
 router.get("/risk-summary", async (req, res) => {
 
     try {
 
         const request = new sql.Request();
+
 
         const result = await request.query(`
             SELECT
@@ -424,9 +657,11 @@ router.get("/risk-summary", async (req, res) => {
             FROM Incident_Reports
         `);
 
+
         res.status(200).json(
             result.recordset[0]
         );
+
 
     } catch (error) {
 
@@ -434,6 +669,7 @@ router.get("/risk-summary", async (req, res) => {
             "Risk Summary Error:",
             error
         );
+
 
         res.status(500).json({
             message: "Server Error"
@@ -444,7 +680,10 @@ router.get("/risk-summary", async (req, res) => {
 });
 
 
-// Get report by Report ID
+
+// ==========================================
+// GET REPORT BY REPORT ID
+// ==========================================
 
 router.get("/:reportId", async (req, res) => {
 
@@ -453,17 +692,21 @@ router.get("/:reportId", async (req, res) => {
         req.params.reportId
     );
 
+
     try {
 
         const { reportId } = req.params;
 
+
         const request = new sql.Request();
+
 
         request.input(
             "ReportId",
             sql.Int,
             reportId
         );
+
 
         const result = await request.query(`
 
@@ -484,6 +727,14 @@ router.get("/:reportId", async (req, res) => {
                 IR.Created_At,
                 IR.Photo_Path,
 
+                AI.AI_Category,
+                AI.AI_Severity,
+                AI.AI_Priority,
+                AI.Misinformation_Score,
+                AI.AI_Summary,
+                AI.AI_Recommendation,
+                AI.Analyzed_At,
+
                 ISNULL(RA.Assignment_id, 0) AS Assignment_id,
                 ISNULL(RA.Status, 'No Assignment') AS Assignment_Status,
 
@@ -498,8 +749,8 @@ router.get("/:reportId", async (req, res) => {
                 ISNULL(VA.Status, 'No Volunteer') AS Volunteer_Assignment_Status,
 
                 ISNULL(V.Volunteer_id, 0) AS Volunteer_id,
-                ISNULL(V.Skill_Set, 'None') AS Volunteer_Skill,
-                ISNULL(V.Availability_Status, 'N/A') AS Volunteer_Status,
+                ISNULL(V.Skills, 'None') AS Volunteer_Skill,
+                ISNULL(V.Availability, 'N/A') AS Volunteer_Status,
                 ISNULL(V.Location_Name, 'N/A') AS Volunteer_Location
 
             FROM Incident_Reports IR
@@ -516,14 +767,19 @@ router.get("/:reportId", async (req, res) => {
             LEFT JOIN Volunteers V
                 ON VA.Volunteer_id = V.Volunteer_id
 
+            LEFT JOIN AI_Analysis AI
+                ON IR.Report_id = AI.Report_id
+
             WHERE IR.Report_id = @ReportId
 
         `);
+
 
         console.log(
             "SQL QUERY RESULT RECORDSET:",
             result.recordset
         );
+
 
         if (result.recordset.length === 0) {
 
@@ -533,9 +789,11 @@ router.get("/:reportId", async (req, res) => {
 
         }
 
+
         res.status(200).json(
             result.recordset
         );
+
 
     } catch (error) {
 
@@ -544,6 +802,7 @@ router.get("/:reportId", async (req, res) => {
             error
         );
 
+
         res.status(500).json({
             message: "Server Error"
         });
@@ -553,18 +812,26 @@ router.get("/:reportId", async (req, res) => {
 });
 
 
-// Update report status
+
+// ==========================================
+// UPDATE REPORT STATUS
+// ==========================================
 
 router.put("/:reportId/status", async (req, res) => {
 
     try {
 
-        console.log("NEW REPORT DETAILS ROUTE HIT");
+        console.log(
+            "NEW REPORT DETAILS ROUTE HIT"
+        );
+
 
         const { reportId } = req.params;
         const { status } = req.body;
 
+
         const request = new sql.Request();
+
 
         request.input(
             "ReportId",
@@ -572,11 +839,13 @@ router.put("/:reportId/status", async (req, res) => {
             reportId
         );
 
+
         request.input(
             "Status",
             sql.NVarChar,
             status
         );
+
 
         await request.query(`
             UPDATE Incident_Reports
@@ -584,9 +853,11 @@ router.put("/:reportId/status", async (req, res) => {
             WHERE Report_id = @ReportId
         `);
 
+
         res.json({
             message: "Status updated successfully"
         });
+
 
     } catch (error) {
 
@@ -595,16 +866,19 @@ router.put("/:reportId/status", async (req, res) => {
             error
         );
 
+
         res.status(500).json({
             message: "Server Error"
         });
 
-    }
+        }
+    });
 
-});
 
 
-// Assign resource
+// ==========================================
+// ASSIGN RESOURCE
+// ==========================================
 
 router.post("/:reportId/assign-resource", async (req, res) => {
 
@@ -613,15 +887,18 @@ router.post("/:reportId/assign-resource", async (req, res) => {
         const { reportId } = req.params;
         const { resourceId } = req.body;
 
+
         // Check if resource already assigned
 
         const checkRequest = new sql.Request();
+
 
         checkRequest.input(
             "ReportId",
             sql.Int,
             reportId
         );
+
 
         const existingAssignment =
             await checkRequest.query(`
@@ -631,6 +908,7 @@ router.post("/:reportId/assign-resource", async (req, res) => {
                   AND Status = 'Active'
             `);
 
+
         if (existingAssignment.recordset.length > 0) {
 
             return res.status(400).json({
@@ -639,9 +917,11 @@ router.post("/:reportId/assign-resource", async (req, res) => {
 
         }
 
+
         // Insert new assignment
 
         const request = new sql.Request();
+
 
         request.input(
             "ReportId",
@@ -649,11 +929,13 @@ router.post("/:reportId/assign-resource", async (req, res) => {
             reportId
         );
 
+
         request.input(
             "ResourceId",
             sql.Int,
             resourceId
         );
+
 
         await request.query(`
 
@@ -672,9 +954,11 @@ router.post("/:reportId/assign-resource", async (req, res) => {
 
         `);
 
+
         res.json({
             message: "Resource assigned successfully"
         });
+
 
     } catch (error) {
 
@@ -682,6 +966,7 @@ router.post("/:reportId/assign-resource", async (req, res) => {
             "Assign Resource Error:",
             error
         );
+
 
         res.status(500).json({
             message: "Server Error"
@@ -692,7 +977,10 @@ router.post("/:reportId/assign-resource", async (req, res) => {
 });
 
 
-// Assign volunteer
+
+// ==========================================
+// ASSIGN VOLUNTEER
+// ==========================================
 
 router.post("/:reportId/assign-volunteer", async (req, res) => {
 
@@ -701,15 +989,18 @@ router.post("/:reportId/assign-volunteer", async (req, res) => {
         const { reportId } = req.params;
         const { volunteerId } = req.body;
 
+
         // Check existing active assignment
 
         const checkRequest = new sql.Request();
+
 
         checkRequest.input(
             "ReportId",
             sql.Int,
             reportId
         );
+
 
         const existingAssignment =
             await checkRequest.query(`
@@ -719,6 +1010,7 @@ router.post("/:reportId/assign-volunteer", async (req, res) => {
                   AND Status = 'Active'
             `);
 
+
         if (existingAssignment.recordset.length > 0) {
 
             return res.status(400).json({
@@ -727,7 +1019,9 @@ router.post("/:reportId/assign-volunteer", async (req, res) => {
 
         }
 
+
         const request = new sql.Request();
+
 
         request.input(
             "ReportId",
@@ -735,13 +1029,16 @@ router.post("/:reportId/assign-volunteer", async (req, res) => {
             reportId
         );
 
+
         request.input(
             "VolunteerId",
             sql.Int,
             volunteerId
         );
 
+
         await request.query(`
+
             INSERT INTO Volunteer_Assignments
             (
                 Report_id,
@@ -756,9 +1053,11 @@ router.post("/:reportId/assign-volunteer", async (req, res) => {
             )
         `);
 
+
         res.json({
             message: "Volunteer assigned successfully"
         });
+
 
     } catch (error) {
 
@@ -767,6 +1066,7 @@ router.post("/:reportId/assign-volunteer", async (req, res) => {
             error
         );
 
+
         res.status(500).json({
             message: "Server Error"
         });
@@ -774,6 +1074,7 @@ router.post("/:reportId/assign-volunteer", async (req, res) => {
     }
 
 });
+
 
 
 module.exports = router;
