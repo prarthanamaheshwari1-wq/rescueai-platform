@@ -41,6 +41,11 @@ async function loadReports() {
                 r => r.Status === "Resolved"
             ).length;
 
+        document.getElementById("rejectedReports").textContent =
+            reports.filter(
+                r => r.Status === "Rejected"
+            ).length;
+
         const tableBody =
             document.getElementById("reportsTableBody");
 
@@ -69,35 +74,105 @@ async function loadReports() {
                     </td>
 
                     <td>
-                        <select id="status-${report.Report_id}">
-                            <option value="Submitted"
-                                ${status === "Submitted" ? "selected" : ""}>
-                                Submitted
-                            </option>
+    <select
+        id="status-${report.Report_id}"
+        ${status === "Resolved" || status === "Rejected" ? "disabled" : ""}
+    >
 
-                            <option value="Verified"
-                                ${status === "Verified" ? "selected" : ""}>
-                                Verified
-                            </option>
+        ${status === "Submitted"
+                    ? `
+                    <option value="Submitted" selected>
+                        Submitted
+                    </option>
 
-                            <option value="Resolved"
-                                ${status === "Resolved" ? "selected" : ""}>
-                                Resolved
-                            </option>
-                        </select>
-                    </td>
+                    <option value="Verified">
+                        Verified
+                    </option>
 
+                    <option value="Rejected">
+                        Rejected
+                    </option>
+
+                  `
+                    : ""
+                }
+
+        ${status === "Verified"
+                    ? `
+                    <option value="Verified" selected>
+                        Verified
+                    </option>
+
+                    <option value="Resolved">
+                        Resolved
+                    </option>
+                  `
+                    : ""
+                }
+
+        ${status === "Resolved"
+                    ? `
+                    <option value="Resolved" selected>
+                        Resolved
+                    </option>
+                  `
+                    : ""
+                }
+
+        ${status === "Rejected"
+                    ? `
+                    <option value="Rejected" selected>
+                        Rejected
+                    </option>
+                  `
+                    : ""
+                }
+
+    </select>
+</td>
                     <td>
-                        <button onclick="updateStatus(${report.Report_id})">
-                            Update
-                        </button>
-                    </td>
-
+    ${status === "Resolved" || status === "Rejected"
+                    ? `
+                <button disabled>
+                    Closed
+                </button>
+              `
+                    : `
+                <button onclick="updateStatus(${report.Report_id})">
+                    Update
+                </button>
+              `
+                }
+</td>
                     <td>
-                        <button onclick="assignResource(${report.Report_id})">
-                            Assign
-                        </button>
-                    </td>
+    ${status === "Resolved" || status === "Rejected"
+                    ? `
+                <button disabled>
+                    Closed
+                </button>
+              `
+                    : `
+                <button onclick="assignResource(${report.Report_id})">
+                    🚒 Resource
+                </button>
+              `
+                }
+</td>
+
+<td>
+    ${status === "Resolved" || status === "Rejected"
+                    ? `
+                <button disabled>
+                    Closed
+                </button>
+              `
+                    : `
+                <button onclick="assignVolunteer(${report.Report_id})">
+                    👨‍🚒 Volunteer
+                </button>
+              `
+                }
+</td>
 
                     <td>
                         <button onclick="viewReport(${report.Report_id})">
@@ -220,10 +295,15 @@ async function loadAlerts() {
 
 async function updateStatus(reportId) {
 
-    const newStatus =
-        document.getElementById(
-            `status-${reportId}`
-        ).value;
+    const statusElement =
+        document.getElementById(`status-${reportId}`);
+
+    if (!statusElement) {
+        alert("Status selector not found.");
+        return;
+    }
+
+    const newStatus = statusElement.value;
 
     try {
 
@@ -240,17 +320,40 @@ async function updateStatus(reportId) {
             }
         );
 
-        const data =
-            await response.json();
+        const data = await response.json();
 
-        alert(data.message);
+        if (!response.ok) {
 
-        loadReports();
+            console.error(
+                "Status Update Failed:",
+                data
+            );
+
+            alert(
+                data.message ||
+                "Failed to update report status."
+            );
+
+            return;
+        }
+
+        alert(
+            data.message ||
+            "Report status updated successfully."
+        );
+
+        await loadReports();
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "Status Update Error:",
+            error
+        );
 
+        alert(
+            "Unable to update report status. Please check the backend."
+        );
     }
 }
 
@@ -294,6 +397,42 @@ async function assignResource(reportId) {
         console.error(error);
 
         alert("Assignment Failed");
+    }
+}
+
+async function assignVolunteer(reportId) {
+    const volunteerId = prompt(
+        "Enter Volunteer ID:\n1 = Rahul Sharma\n2 = Priya Singh\n3 = Aman Verma"
+    );
+
+    if (!volunteerId) return;
+
+    try {
+        const response = await fetch(
+            `http://localhost:5000/api/reports/${reportId}/assign-volunteer`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    volunteerId: parseInt(volunteerId)
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.message || "Volunteer assignment failed.");
+            return;
+        }
+
+        alert(data.message || "Volunteer assigned successfully.");
+
+    } catch (error) {
+        console.error("Assign Volunteer Error:", error);
+        alert("Unable to assign volunteer. Please check the backend.");
     }
 }
 

@@ -4,7 +4,7 @@ const path = require("path");
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         // Option A: If upload.js and the 'uploads' folder are in the root directory:
-        cb(null, path.join(__dirname, ".." ,"uploads"));
+        cb(null, path.join(__dirname, "..", "uploads"));
 
         // Option B: If upload.js is inside a subfolder like 'src/middleware/' or 'routes/', 
         // go up to the project root first:
@@ -33,10 +33,30 @@ const upload = multer({
             "image/webp"
         ];
 
-        if (allowedTypes.includes(file.mimetype)) {
+        const allowedExtensions = [
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp"
+        ];
+
+        const fileExtension =
+            path.extname(file.originalname).toLowerCase();
+
+        const validMimeType =
+            allowedTypes.includes(file.mimetype);
+
+        const validExtension =
+            allowedExtensions.includes(fileExtension);
+
+        if (validMimeType && validExtension) {
+
             cb(null, true);
+
         } else {
-            cb(new Error("Only image files are allowed"));
+
+            cb(new Error("Only JPG, JPEG, PNG and WebP image files are allowed"));
+
         }
     }
 });

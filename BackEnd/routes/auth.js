@@ -6,6 +6,13 @@ const { sql } = require("../config/db");
 router.post("/register", async (req, res) => {
     try {
         const { fullName, email, password, role, phoneNo } = req.body;
+        const allowedRoles = ["citizen"];
+
+        if (role && !allowedRoles.includes(role)) {
+            return res.status(400).json({
+                message: "Invalid role."
+            });
+        }
 
         if (!fullName || !email || !password) {
             return res.status(400).json({

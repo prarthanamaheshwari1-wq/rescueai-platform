@@ -23,9 +23,15 @@ const alertRoutes = require("./routes/alerts");
 const { connectDB } = require("./config/db");
 
 const app = express();
+app.disable("x-powered-by");
 
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+    origin: [
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000"
+    ]
+}));
+app.use(express.json({limit : "1mb"}));
 
 // 1. Ensure uploads directory exists inside BackEnd
 const uploadsPath = path.join(__dirname, "uploads");
