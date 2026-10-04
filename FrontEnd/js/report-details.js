@@ -54,6 +54,8 @@ async function loadReportDetails() {
             return;
         }
 
+        const aiAnalysis = report.AI_Analysis || {};
+
 
         // =========================================
         // EVIDENCE PHOTO
@@ -124,7 +126,7 @@ async function loadReportDetails() {
 
                 <span class="label">Status:</span>
 
-                ${report.Report_Status || "N/A"}
+                ${report.Status || "N/A"}
 
             </div>
 
@@ -142,12 +144,11 @@ async function loadReportDetails() {
 
                 <span class="label">Created:</span>
 
-                ${
-                    report.Created_At
-                    ? new Date(report.Created_At)
-                        .toLocaleString()
-                    : "N/A"
-                }
+                ${report.Created_At
+                ? new Date(report.Created_At)
+                    .toLocaleString()
+                : "N/A"
+            }
 
             </div>
 
@@ -165,7 +166,7 @@ async function loadReportDetails() {
 
                 <span class="label">AI Category:</span>
 
-                ${report.AI_Category || "N/A"}
+                ${aiAnalysis.Category || "N/A"}
 
             </div>
 
@@ -174,7 +175,7 @@ async function loadReportDetails() {
 
                 <span class="label">AI Severity:</span>
 
-                ${report.AI_Severity || "N/A"}
+                ${aiAnalysis.Severity || "N/A"}
 
             </div>
 
@@ -183,7 +184,7 @@ async function loadReportDetails() {
 
                 <span class="label">AI Priority:</span>
 
-                ${report.AI_Priority || "N/A"}
+                ${aiAnalysis.Priority || "N/A"}
 
             </div>
 
@@ -192,9 +193,7 @@ async function loadReportDetails() {
 
                 <span class="label">Misinformation Score:</span>
 
-                ${
-                    report.Misinformation_Score ?? "N/A"
-                }
+                ${aiAnalysis.Misinformation_Score ?? "N/A"}
 
             </div>
 
@@ -204,10 +203,18 @@ async function loadReportDetails() {
                 <span class="label">AI Summary:</span>
 
                 <p>
-                    ${
-                        report.AI_Summary ||
-                        "No AI summary available."
-                    }
+                    ${aiAnalysis.Summary || "No AI summary available."}
+                </p>
+
+            </div>
+
+
+            <div class="detail">
+
+                <span class="label">AI Visual Findings:</span>
+
+                <p style="white-space: pre-line;">
+                    ${aiAnalysis.Visual_Findings || "No image evidence available."}
                 </p>
 
             </div>
@@ -219,8 +226,8 @@ async function loadReportDetails() {
 
                 <p style="white-space: pre-line;">
 
-                    ${
-                        report.AI_Recommendation ||
+                   ${
+                        aiAnalysis.Recommendation ||
                         "No AI recommendation available."
                     }
 
@@ -233,12 +240,11 @@ async function loadReportDetails() {
 
                 <span class="label">Analyzed At:</span>
 
-                ${
-                    report.Analyzed_At
-                    ? new Date(report.Analyzed_At)
-                        .toLocaleString()
-                    : "N/A"
-                }
+                ${aiAnalysis.Analyzed_At
+                ? new Date(aiAnalysis.Analyzed_At)
+                    .toLocaleString()
+                : "N/A"
+            }
 
             </div>
 
@@ -252,8 +258,7 @@ async function loadReportDetails() {
             <h3>🚒 Assigned Resource</h3>
 
 
-            ${
-                report.Resource_Name &&
+            ${report.Resource_Name &&
                 report.Resource_Name !== "None"
 
                 ?
@@ -328,8 +333,7 @@ async function loadReportDetails() {
             <h3>👨‍🚒 Assigned Volunteer</h3>
 
 
-            ${
-                report.Volunteer_id &&
+            ${report.Volunteer_id &&
                 report.Volunteer_id !== 0
 
                 ?
@@ -386,10 +390,9 @@ async function loadReportDetails() {
                         Assignment Status:
                     </span>
 
-                    ${
-                        report.Volunteer_Assignment_Status
-                        || "N/A"
-                    }
+                    ${report.Volunteer_Assignment_Status
+                || "N/A"
+                }
 
                 </div>
 
@@ -418,8 +421,7 @@ async function loadReportDetails() {
             <h3>📷 Evidence Photo</h3>
 
 
-            ${
-                photoUrl
+            ${photoUrl
 
                 ?
 

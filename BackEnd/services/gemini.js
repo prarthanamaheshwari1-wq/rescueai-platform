@@ -9,17 +9,44 @@ const PRIMARY_MODEL = "gemini-3.5-flash-lite";
 const FALLBACK_MODEL = "gemini-3.5-flash-lite";
 
 
-async function generateReportSafely(prompt) {
+async function generateReportSafely(prompt, imageData = null) {
 
-    // ==============================
+    // ==========================================
+    // PREPARE GEMINI CONTENT
+    // ==========================================
+
+    let contents;
+
+    if (imageData) {
+
+        contents = [
+            {
+                text: prompt
+            },
+            {
+                inlineData: {
+                    mimeType: imageData.mimeType,
+                    data: imageData.data
+                }
+            }
+        ];
+
+    } else {
+
+        contents = prompt;
+
+    }
+
+
+    // ==========================================
     // TRY PRIMARY MODEL
-    // ==============================
+    // ==========================================
 
     try {
 
         const response = await ai.models.generateContent({
             model: PRIMARY_MODEL,
-            contents: prompt
+            contents: contents
         });
 
         return {
@@ -35,9 +62,9 @@ async function generateReportSafely(prompt) {
         );
 
 
-        // ==============================
+        // ==========================================
         // TRY FALLBACK MODEL
-        // ==============================
+        // ==========================================
 
         try {
 
@@ -47,7 +74,7 @@ async function generateReportSafely(prompt) {
 
             const response = await ai.models.generateContent({
                 model: FALLBACK_MODEL,
-                contents: prompt
+                contents: contents
             });
 
             return {
@@ -63,9 +90,9 @@ async function generateReportSafely(prompt) {
             );
 
 
-            // ==============================
+            // ==========================================
             // SAFE MANUAL REVIEW FALLBACK
-            // ==============================
+            // ==========================================
 
             return {
                 text:
@@ -76,7 +103,9 @@ async function generateReportSafely(prompt) {
             };
 
         }
+
     }
+
 }
 
 

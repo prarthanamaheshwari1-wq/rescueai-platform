@@ -70,66 +70,99 @@ async function loadAnalysis() {
 
         container.innerHTML = "";
 
-        analyses.forEach(item => {
+        // analyses.forEach(item => {
 
+        //     let priorityClass = "low";
+        //     let badgeClass = "badge-low";
+
+        //     if (item.AI_Priority === "Critical") {
+        //         priorityClass = "critical";
+        //         badgeClass = "badge-critical";
+        //     }
+        //     else if (item.AI_Priority === "Moderate") {
+        //         priorityClass = "moderate";
+        //         badgeClass = "badge-moderate";
+        //     }
+
+        //     container.innerHTML += `
+        //         <div class="analysis-card ${priorityClass}">
+
+        //             <h2>
+        //                 Report #${item.Report_id}
+        //             </h2>
+
+        //             <p>
+        //                 <strong>Category:</strong>
+        //                 ${item.AI_Category}
+        //             </p>
+
+        //             <p>
+        //                 <strong>Severity:</strong>
+        //                 ${item.AI_Severity}
+        //             </p>
+
+        //             <p>
+        //                 <strong>Priority:</strong>
+        //                 <span class="badge ${badgeClass}">
+        //                     ${item.AI_Priority}
+        //                 </span>
+        //             </p>
+
+        //             <p>
+        //                 <strong>Misinformation Score:</strong>
+        //                 ${item.Misinformation_Score}%
+        //             </p>
+
+        //             <p>
+        //                 <strong>Summary:</strong>
+        //                 ${item.AI_Summary}
+        //             </p>
+
+        //             <p>
+        //                 <strong>Recommendation:</strong>
+        //                 ${item.AI_Recommendation}
+        //             </p>
+
+        //             <button onclick="viewReport(${item.Report_id})">
+        //                 View Report
+        //             </button>
+
+        //         </div>
+        //     `;
+        // });
+
+        const cardsHTML = analyses.map((item) => {
+            const priority = item.AI_Priority || "Low";
             let priorityClass = "low";
             let badgeClass = "badge-low";
 
-            if (item.AI_Priority === "Critical") {
+            if (priority === "Critical") {
                 priorityClass = "critical";
                 badgeClass = "badge-critical";
-            }
-            else if (item.AI_Priority === "Moderate") {
+            } else if (priority === "Moderate") {
                 priorityClass = "moderate";
                 badgeClass = "badge-moderate";
             }
 
-            container.innerHTML += `
-                <div class="analysis-card ${priorityClass}">
+            return `
+        <div class="analysis-card ${priorityClass}">
+            <h2>Report #${item.Report_id}</h2>
+            <p><strong>Category:</strong> ${item.AI_Category || "N/A"}</p>
+            <p><strong>Severity:</strong> ${item.AI_Severity || "N/A"}</p>
+            <p>
+                <strong>Priority:</strong> 
+                <span class="badge ${badgeClass}">${priority}</span>
+            </p>
+            <p><strong>Misinformation Score:</strong> ${item.Misinformation_Score ?? 0}%</p>
+            <p><strong>Summary:</strong> ${item.AI_Summary || "No summary provided."}</p>
+            <p><strong>Visual Findings:</strong><br> ${item.AI_Visual_Findings || "No image evidence available."}</p>
+            <p><strong>Recommendation:</strong> ${item.AI_Recommendation || "No recommendation available."}</p>
+            <button onclick="viewReport(${item.Report_id})">View Report</button>
+        </div>
+    `;
+        }).join("");
 
-                    <h2>
-                        Report #${item.Report_id}
-                    </h2>
-
-                    <p>
-                        <strong>Category:</strong>
-                        ${item.AI_Category}
-                    </p>
-
-                    <p>
-                        <strong>Severity:</strong>
-                        ${item.AI_Severity}
-                    </p>
-
-                    <p>
-                        <strong>Priority:</strong>
-                        <span class="badge ${badgeClass}">
-                            ${item.AI_Priority}
-                        </span>
-                    </p>
-
-                    <p>
-                        <strong>Misinformation Score:</strong>
-                        ${item.Misinformation_Score}%
-                    </p>
-
-                    <p>
-                        <strong>Summary:</strong>
-                        ${item.AI_Summary}
-                    </p>
-
-                    <p>
-                        <strong>Recommendation:</strong>
-                        ${item.AI_Recommendation}
-                    </p>
-
-                    <button onclick="viewReport(${item.Report_id})">
-                        View Report
-                    </button>
-
-                </div>
-            `;
-        });
+        container.innerHTML = cardsHTML;
 
     } catch (error) {
 

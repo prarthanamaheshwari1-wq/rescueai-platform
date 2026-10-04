@@ -3,12 +3,19 @@ console.log("REPORTS.JS LOADED");
 const router = express.Router();
 const { sql } = require("../config/db");
 const upload = require("../middleware/upload");
+const fs = require("fs");
+const { generateReportSafely } = require("../services/gemini");
+const { processDisasterImage } = require("../services/imageProcessor");
 
-const {
-    generateReportSafely
-} = require("../services/gemini");
-
-
+const safeDeleteFile = (filePath) => {
+    if (filePath && fs.existsSync(filePath)) {
+        try {
+            fs.unlinkSync(filePath);
+        } catch (err) {
+            console.error(`Failed to clean up file at ${filePath}:`, err.message);
+        }
+    }
+};
 
 // ==========================================
 // CREATE EMERGENCY REPORT
@@ -27,7 +34,7 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
             latitude,
             longitude
         } = req.body;
-
+        console.log("RECEIVED SEVERITY:", JSON.stringify(severity));
 
         // ==========================================
         // EMERGENCY REPORT INPUT VALIDATION
@@ -52,7 +59,8 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
         const allowedSeverities = [
             "Low",
             "Medium",
-            "High"
+            "High",
+            "Critical"
         ];
 
 
@@ -60,7 +68,7 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
 
             return res.status(400).json({
                 message:
-                    "Severity must be Low, Medium or High."
+                    "Severity must be Low, Medium, High or Critical"
             });
 
         }
@@ -104,9 +112,24 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
         // PHOTO PATH
         // ==========================================
 
-        const photoPath = req.file
-            ? `uploads/${req.file.filename}`
-            : null;
+        let photoPath = null;
+        let imageData = null;
+
+        if (req.file) {
+
+            photoPath = `uploads/${req.file.filename}`;
+
+            const processedImagePath =
+                await processDisasterImage(req.file.path);
+
+            const processedImage =
+                fs.readFileSync(processedImagePath);
+
+            imageData = {
+                mimeType: "image/jpeg",
+                data: processedImage.toString("base64")
+            };
+        }
 
 
 
@@ -233,6 +256,7 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
 
         let aiPriority = "Low";
         let aiSummary = "";
+        let aiVisualFindings = "";
         let aiRecommendation = "";
         let misinformationScore = 0;
 
@@ -284,9 +308,14 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
         // PRIORITY LOGIC
         // ==========================================
 
-        if (severity === "High") {
+        if (severity === "Critical") {
 
             aiPriority = "Critical";
+
+        }
+        else if (severity === "High") {
+
+            aiPriority = "High";
 
         }
         else if (severity === "Medium") {
@@ -310,7 +339,11 @@ router.post("/emergency", upload.single("photo"), async (req, res) => {
 
 You are RescueAI, an AI disaster-response assistant.
 
-Analyze the following emergency incident:
+Analyze this emergency incident using BOTH:
+1. The information provided by the user.
+2. The uploaded disaster image, if an image is available.
+
+Incident Information:
 
 Title: ${title}
 Description: ${description}
@@ -318,24 +351,37 @@ Category: ${category}
 Reported Severity: ${severity}
 Location: ${locationName}
 
-Provide a practical disaster-response analysis.
+IMAGE ANALYSIS REQUIREMENTS:
+- Carefully inspect the uploaded image when available.
+- Identify visible disaster conditions.
+- Identify visible damage, hazards, affected people, vehicles, buildings or infrastructure.
+- Identify visible rescue or emergency-response activity.
+- Do not assume that something is present if it cannot be reasonably observed.
+- Clearly distinguish visible observations from information provided by the user.
+- If the image does not provide enough information, say so.
 
-Return exactly in this format:
+RETURN EXACTLY IN THIS FORMAT:
 
 SUMMARY:
-<2-3 sentence incident summary>
+<2-3 sentence summary combining the reported incident and visible image evidence>
+
+VISUAL_FINDINGS:
+<short bullet-style list of important things visibly detected in the image>
 
 RECOMMENDATION:
-<2-4 practical emergency response actions>
+<2-4 practical emergency response actions based on the incident and visible conditions>
 
 IMPORTANT FACTUAL RULES:
 - Treat the Title, Description, Category, Reported Severity, and Location as fixed facts.
 - Never change, replace, or invent the reported location.
 - Never change or replace the reported category or severity.
 - Never introduce a different city, location, category, or severity.
-- Do not invent facts that are not present in the incident.
-- You may provide general safety recommendations, but clearly base them on the information provided.
+- Do not invent people, damage, casualties, rescue activity, or hazards that are not supported by the report or image.
+- Image observations must be described only when reasonably visible.
 - Focus on immediate safety and disaster-response actions.
+- VISUAL_FINDINGS must contain only observations supported by the uploaded image.
+- If no image is available, write: No image evidence available.
+- Keep VISUAL_FINDINGS concise and practical.
 
 `;
 
@@ -350,7 +396,7 @@ IMPORTANT FACTUAL RULES:
             const {
                 text: aiText,
                 needsManualReview
-            } = await generateReportSafely(prompt);
+            } = await generateReportSafely(prompt, imageData);
 
 
             // ==========================================
@@ -375,7 +421,7 @@ IMPORTANT FACTUAL RULES:
 
                 const summaryMatch =
                     aiText.match(
-                        /SUMMARY:\s*([\s\S]*?)\s*RECOMMENDATION:/i
+                        /SUMMARY:\s*([\s\S]*?)(?=\s*VISUAL_FINDINGS:|\s*RECOMMENDATION:)/i
                     );
 
 
@@ -389,10 +435,22 @@ IMPORTANT FACTUAL RULES:
                     );
 
 
+                const visualFindingsMatch =
+                    aiText.match(
+                        /VISUAL_FINDINGS:\s*([\s\S]*?)\s*RECOMMENDATION:/i
+                    );
+
+
                 aiSummary =
                     summaryMatch
                         ? summaryMatch[1].trim()
                         : "AI analysis generated successfully.";
+
+
+                aiVisualFindings =
+                    visualFindingsMatch
+                        ? visualFindingsMatch[1].trim()
+                        : "No image evidence available.";
 
 
                 aiRecommendation =
@@ -473,6 +531,13 @@ IMPORTANT FACTUAL RULES:
 
 
         aiRequest.input(
+            "AIVisualFindings",
+            sql.NVarChar,
+            aiVisualFindings
+        );
+
+
+        aiRequest.input(
             "AIRecommendation",
             sql.NVarChar,
             aiRecommendation
@@ -489,6 +554,7 @@ IMPORTANT FACTUAL RULES:
                 AI_Priority,
                 Misinformation_Score,
                 AI_Summary,
+                AI_Visual_Findings,
                 AI_Recommendation
             )
 
@@ -500,6 +566,7 @@ IMPORTANT FACTUAL RULES:
                 @AIPriority,
                 @MIScore,
                 @AISummary,
+                @AIVisualFindings,
                 @AIRecommendation
             )
 
@@ -616,6 +683,7 @@ router.get("/pending", async (req, res) => {
                 AI.AI_Priority,
                 AI.Misinformation_Score,
                 AI.AI_Summary,
+                AI.AI_Visual_Findings,
                 AI.AI_Recommendation
 
             FROM Incident_Reports IR
@@ -830,133 +898,230 @@ router.get("/risk-summary", async (req, res) => {
 // GET REPORT BY REPORT ID
 // ==========================================
 
+// router.get("/:reportId", async (req, res) => {
+
+//     console.log(
+//         "=== GET REPORT DETAILS HIT ===",
+//         req.params.reportId
+//     );
+
+
+//     try {
+
+//         const { reportId } = req.params;
+
+
+//         const request = new sql.Request();
+
+
+//         request.input(
+//             "ReportId",
+//             sql.Int,
+//             reportId
+//         );
+
+
+//         const result = await request.query(`
+
+//             SELECT
+
+//                 IR.Report_id,
+//                 IR.User_id,
+//                 IR.Disaster_id,
+//                 IR.Title,
+//                 IR.Description,
+//                 IR.Category,
+//                 IR.Severity,
+//                 IR.Priority,
+//                 IR.Location_Name,
+//                 IR.Latitude,
+//                 IR.Longitude,
+//                 IR.Status,
+//                 IR.Created_At,
+//                 IR.Photo_Path,
+
+//                 AI.AI_Category,
+//                 AI.AI_Severity,
+//                 AI.AI_Priority,
+//                 AI.Misinformation_Score,
+//                 AI.AI_Summary,
+//                 AI.AI_Recommendation,
+//                 AI.Analyzed_At,
+
+//                 ISNULL(RA.Assignment_id, 0) AS Assignment_id,
+//                 ISNULL(RA.Status, 'No Assignment') AS Assignment_Status,
+
+//                 ISNULL(R.Resource_id, 0) AS Resource_id,
+//                 ISNULL(R.Resource_Name, 'None') AS Resource_Name,
+//                 R.Resource_Type,
+//                 R.Quantity,
+//                 R.Location_Name AS Resource_Location,
+//                 R.Status AS Resource_Status,
+
+//                 ISNULL(VA.Assignment_id, 0) AS Volunteer_Assignment_Id,
+//                 ISNULL(VA.Status, 'No Volunteer') AS Volunteer_Assignment_Status,
+
+//                 ISNULL(V.Volunteer_id, 0) AS Volunteer_id,
+//                 ISNULL(V.Skills, 'None') AS Volunteer_Skill,
+//                 ISNULL(V.Availability, 'N/A') AS Volunteer_Status,
+//                 ISNULL(V.Location_Name, 'N/A') AS Volunteer_Location
+
+//             FROM Incident_Reports IR
+
+//             LEFT JOIN Resource_Assignments RA
+//                 ON IR.Report_id = RA.Report_id
+
+//             LEFT JOIN Resources R
+//                 ON RA.Resource_id = R.Resource_id
+
+//             LEFT JOIN Volunteer_Assignments VA
+//                 ON IR.Report_id = VA.Report_id
+
+//             LEFT JOIN Volunteers V
+//                 ON VA.Volunteer_id = V.Volunteer_id
+
+//             LEFT JOIN AI_Analysis AI
+//                 ON IR.Report_id = AI.Report_id
+
+//             WHERE IR.Report_id = @ReportId
+
+//         `);
+
+
+//         console.log(
+//             "SQL QUERY RESULT RECORDSET:",
+//             result.recordset
+//         );
+
+
+//         if (result.recordset.length === 0) {
+
+//             return res.status(404).json({
+//                 message: "Report not found"
+//             });
+
+//         }
+
+
+//         res.status(200).json(
+//             result.recordset
+//         );
+
+
+//     }
+//     catch (error) {
+
+//         console.error(
+//             "Get Report Error:",
+//             error
+//         );
+
+
+//         res.status(500).json({
+//             message: "Server Error"
+//         });
+
+//     }
+
+// });
+
 router.get("/:reportId", async (req, res) => {
-
-    console.log(
-        "=== GET REPORT DETAILS HIT ===",
-        req.params.reportId
-    );
-
-
     try {
-
         const { reportId } = req.params;
-
-
         const request = new sql.Request();
-
-
-        request.input(
-            "ReportId",
-            sql.Int,
-            reportId
-        );
-
+        request.input("ReportId", sql.Int, reportId);
 
         const result = await request.query(`
-
-            SELECT
-
-                IR.Report_id,
-                IR.User_id,
-                IR.Disaster_id,
-                IR.Title,
-                IR.Description,
-                IR.Category,
-                IR.Severity,
-                IR.Priority,
-                IR.Location_Name,
-                IR.Latitude,
-                IR.Longitude,
-                IR.Status,
-                IR.Created_At,
-                IR.Photo_Path,
-
-                AI.AI_Category,
-                AI.AI_Severity,
-                AI.AI_Priority,
-                AI.Misinformation_Score,
-                AI.AI_Summary,
-                AI.AI_Recommendation,
-                AI.Analyzed_At,
-
-                ISNULL(RA.Assignment_id, 0) AS Assignment_id,
-                ISNULL(RA.Status, 'No Assignment') AS Assignment_Status,
-
-                ISNULL(R.Resource_id, 0) AS Resource_id,
-                ISNULL(R.Resource_Name, 'None') AS Resource_Name,
-                R.Resource_Type,
-                R.Quantity,
-                R.Location_Name AS Resource_Location,
-                R.Status AS Resource_Status,
-
-                ISNULL(VA.Assignment_id, 0) AS Volunteer_Assignment_Id,
-                ISNULL(VA.Status, 'No Volunteer') AS Volunteer_Assignment_Status,
-
-                ISNULL(V.Volunteer_id, 0) AS Volunteer_id,
-                ISNULL(V.Skills, 'None') AS Volunteer_Skill,
-                ISNULL(V.Availability, 'N/A') AS Volunteer_Status,
-                ISNULL(V.Location_Name, 'N/A') AS Volunteer_Location
-
-            FROM Incident_Reports IR
-
-            LEFT JOIN Resource_Assignments RA
-                ON IR.Report_id = RA.Report_id
-
-            LEFT JOIN Resources R
-                ON RA.Resource_id = R.Resource_id
-
-            LEFT JOIN Volunteer_Assignments VA
-                ON IR.Report_id = VA.Report_id
-
-            LEFT JOIN Volunteers V
-                ON VA.Volunteer_id = V.Volunteer_id
-
-            LEFT JOIN AI_Analysis AI
-                ON IR.Report_id = AI.Report_id
-
-            WHERE IR.Report_id = @ReportId
-
-        `);
-
-
-        console.log(
-            "SQL QUERY RESULT RECORDSET:",
-            result.recordset
-        );
-
+      SELECT 
+        IR.Report_id, IR.User_id, IR.Disaster_id, IR.Title, IR.Description,
+        IR.Category, IR.Severity, IR.Priority, IR.Location_Name, IR.Latitude,
+        IR.Longitude, IR.Status, IR.Created_At, IR.Photo_Path,
+        AI.AI_Category, AI.AI_Severity, AI.AI_Priority, AI.Misinformation_Score,
+        AI.AI_Summary, AI.AI_Visual_Findings, AI.AI_Recommendation, AI.Analyzed_At,
+        RA.Assignment_id AS ResourceAssignmentId, RA.Status AS ResourceAssignmentStatus,
+        R.Resource_id, R.Resource_Name, R.Resource_Type, R.Quantity,
+        R.Location_Name AS Resource_Location, R.Status AS Resource_Status,
+        VA.Assignment_id AS VolunteerAssignmentId, VA.Status AS VolunteerAssignmentStatus,
+        V.Volunteer_id, V.Skills AS Volunteer_Skill, V.Availability AS Volunteer_Status,
+        V.Location_Name AS Volunteer_Location
+      FROM Incident_Reports IR
+      LEFT JOIN AI_Analysis AI ON IR.Report_id = AI.Report_id
+      LEFT JOIN Resource_Assignments RA ON IR.Report_id = RA.Report_id
+      LEFT JOIN Resources R ON RA.Resource_id = R.Resource_id
+      LEFT JOIN Volunteer_Assignments VA ON IR.Report_id = VA.Report_id
+      LEFT JOIN Volunteers V ON VA.Volunteer_id = V.Volunteer_id
+      WHERE IR.Report_id = @ReportId
+    `);
 
         if (result.recordset.length === 0) {
-
-            return res.status(404).json({
-                message: "Report not found"
-            });
-
+            return res.status(404).json({ message: "Report not found" });
         }
 
+        const firstRow = result.recordset[0];
+        const reportData = {
+            Report_id: firstRow.Report_id,
+            Title: firstRow.Title,
+            Description: firstRow.Description,
+            Category: firstRow.Category,
+            Severity: firstRow.Severity,
+            Priority: firstRow.Priority,
+            Location_Name: firstRow.Location_Name,
+            Latitude: firstRow.Latitude,
+            Longitude: firstRow.Longitude,
+            Status: firstRow.Status,
+            Created_At: firstRow.Created_At,
+            Photo_Path: firstRow.Photo_Path,
+            AI_Analysis: firstRow.AI_Summary ? {
+                Category: firstRow.AI_Category,
+                Severity: firstRow.AI_Severity,
+                Priority: firstRow.AI_Priority,
+                Misinformation_Score: firstRow.Misinformation_Score,
+                Summary: firstRow.AI_Summary,
+                Visual_Findings: firstRow.AI_Visual_Findings,
+                Recommendation: firstRow.AI_Recommendation,
+                Analyzed_At: firstRow.Analyzed_At
+            } : null,
+            Resources: [],
+            Volunteers: []
+        };
 
-        res.status(200).json(
-            result.recordset
-        );
+        const resourceSet = new Set();
+        const volunteerSet = new Set();
 
+        result.recordset.forEach((row) => {
+            if (row.Resource_id && !resourceSet.has(row.Resource_id)) {
+                resourceSet.add(row.Resource_id);
+                reportData.Resources.push({
+                    Assignment_id: row.ResourceAssignmentId,
+                    Resource_id: row.Resource_id,
+                    Resource_Name: row.Resource_Name,
+                    Resource_Type: row.Resource_Type,
+                    Quantity: row.Quantity,
+                    Resource_Location: row.Resource_Location,
+                    Resource_Status: row.Resource_Status,
+                    Assignment_Status: row.ResourceAssignmentStatus
+                });
+            }
 
-    }
-    catch (error) {
-
-        console.error(
-            "Get Report Error:",
-            error
-        );
-
-
-        res.status(500).json({
-            message: "Server Error"
+            if (row.Volunteer_id && !volunteerSet.has(row.Volunteer_id)) {
+                volunteerSet.add(row.Volunteer_id);
+                reportData.Volunteers.push({
+                    Assignment_id: row.VolunteerAssignmentId,
+                    Volunteer_id: row.Volunteer_id,
+                    Skill: row.Volunteer_Skill,
+                    Status: row.Volunteer_Status,
+                    Location: row.Volunteer_Location,
+                    Assignment_Status: row.VolunteerAssignmentStatus
+                });
+            }
         });
 
+        res.status(200).json(reportData);
+    } catch (error) {
+        console.error("Get Report Error:", error);
+        res.status(500).json({ message: "Server Error" });
     }
-
 });
-
 
 
 // ==========================================

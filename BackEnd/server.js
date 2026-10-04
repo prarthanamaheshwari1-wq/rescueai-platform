@@ -6,9 +6,9 @@ const path = require("path");
 const fs = require("fs");
 const dns = require("dns");
 
-try{
+try {
     dns.setDefaultResultOrder("ipv4first");
-}catch(dnsErr){
+} catch (dnsErr) {
     console.warn("DNS configuration warning:", dnsErr.message);
 }
 
@@ -25,13 +25,35 @@ const { connectDB } = require("./config/db");
 const app = express();
 app.disable("x-powered-by");
 
-app.use(cors({
-    origin: [
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:8000"
-    ]
-}));
-app.use(express.json({limit : "1mb"}));
+// app.use(cors({
+//     origin: [
+//         "http://127.0.0.1:3000",
+//         "http://127.0.0.1:8000"
+//     ]
+// }));
+
+const allowedOrigins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    process.env.CLIENT_URL
+].filter(Boolean);
+
+app.use(
+    cors({
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error(`CORS blocked for origin: ${origin}`));
+            }
+        },
+        credentials: true,
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    })
+);
+app.use(express.json({ limit: "1mb" }));
 
 // 1. Ensure uploads directory exists inside BackEnd
 const uploadsPath = path.join(__dirname, "uploads");
@@ -41,7 +63,15 @@ if (!fs.existsSync(uploadsPath)) {
 
 
 // 3. Serve static images directly from BackEnd/uploads
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use(
+    "/uploads",
+    express.static(path.join(__dirname, "uploads"), {
+        dotfiles: "ignore",
+        etag: true,
+        extensions: ["jpg", "jpeg", "png", "webp", "gif"]
+    })
+);
 
 // API Routes
 app.use("/api/auth", authRoutes);
