@@ -894,171 +894,84 @@ router.get("/risk-summary", async (req, res) => {
 
 
 
-// ==========================================
-// GET REPORT BY REPORT ID
-// ==========================================
-
-// router.get("/:reportId", async (req, res) => {
-
-//     console.log(
-//         "=== GET REPORT DETAILS HIT ===",
-//         req.params.reportId
-//     );
-
-
-//     try {
-
-//         const { reportId } = req.params;
-
-
-//         const request = new sql.Request();
-
-
-//         request.input(
-//             "ReportId",
-//             sql.Int,
-//             reportId
-//         );
-
-
-//         const result = await request.query(`
-
-//             SELECT
-
-//                 IR.Report_id,
-//                 IR.User_id,
-//                 IR.Disaster_id,
-//                 IR.Title,
-//                 IR.Description,
-//                 IR.Category,
-//                 IR.Severity,
-//                 IR.Priority,
-//                 IR.Location_Name,
-//                 IR.Latitude,
-//                 IR.Longitude,
-//                 IR.Status,
-//                 IR.Created_At,
-//                 IR.Photo_Path,
-
-//                 AI.AI_Category,
-//                 AI.AI_Severity,
-//                 AI.AI_Priority,
-//                 AI.Misinformation_Score,
-//                 AI.AI_Summary,
-//                 AI.AI_Recommendation,
-//                 AI.Analyzed_At,
-
-//                 ISNULL(RA.Assignment_id, 0) AS Assignment_id,
-//                 ISNULL(RA.Status, 'No Assignment') AS Assignment_Status,
-
-//                 ISNULL(R.Resource_id, 0) AS Resource_id,
-//                 ISNULL(R.Resource_Name, 'None') AS Resource_Name,
-//                 R.Resource_Type,
-//                 R.Quantity,
-//                 R.Location_Name AS Resource_Location,
-//                 R.Status AS Resource_Status,
-
-//                 ISNULL(VA.Assignment_id, 0) AS Volunteer_Assignment_Id,
-//                 ISNULL(VA.Status, 'No Volunteer') AS Volunteer_Assignment_Status,
-
-//                 ISNULL(V.Volunteer_id, 0) AS Volunteer_id,
-//                 ISNULL(V.Skills, 'None') AS Volunteer_Skill,
-//                 ISNULL(V.Availability, 'N/A') AS Volunteer_Status,
-//                 ISNULL(V.Location_Name, 'N/A') AS Volunteer_Location
-
-//             FROM Incident_Reports IR
-
-//             LEFT JOIN Resource_Assignments RA
-//                 ON IR.Report_id = RA.Report_id
-
-//             LEFT JOIN Resources R
-//                 ON RA.Resource_id = R.Resource_id
-
-//             LEFT JOIN Volunteer_Assignments VA
-//                 ON IR.Report_id = VA.Report_id
-
-//             LEFT JOIN Volunteers V
-//                 ON VA.Volunteer_id = V.Volunteer_id
-
-//             LEFT JOIN AI_Analysis AI
-//                 ON IR.Report_id = AI.Report_id
-
-//             WHERE IR.Report_id = @ReportId
-
-//         `);
-
-
-//         console.log(
-//             "SQL QUERY RESULT RECORDSET:",
-//             result.recordset
-//         );
-
-
-//         if (result.recordset.length === 0) {
-
-//             return res.status(404).json({
-//                 message: "Report not found"
-//             });
-
-//         }
-
-
-//         res.status(200).json(
-//             result.recordset
-//         );
-
-
-//     }
-//     catch (error) {
-
-//         console.error(
-//             "Get Report Error:",
-//             error
-//         );
-
-
-//         res.status(500).json({
-//             message: "Server Error"
-//         });
-
-//     }
-
-// });
-
 router.get("/:reportId", async (req, res) => {
+
     try {
+
         const { reportId } = req.params;
-        const request = new sql.Request();
-        request.input("ReportId", sql.Int, reportId);
 
-        const result = await request.query(`
-      SELECT 
-        IR.Report_id, IR.User_id, IR.Disaster_id, IR.Title, IR.Description,
-        IR.Category, IR.Severity, IR.Priority, IR.Location_Name, IR.Latitude,
-        IR.Longitude, IR.Status, IR.Created_At, IR.Photo_Path,
-        AI.AI_Category, AI.AI_Severity, AI.AI_Priority, AI.Misinformation_Score,
-        AI.AI_Summary, AI.AI_Visual_Findings, AI.AI_Recommendation, AI.Analyzed_At,
-        RA.Assignment_id AS ResourceAssignmentId, RA.Status AS ResourceAssignmentStatus,
-        R.Resource_id, R.Resource_Name, R.Resource_Type, R.Quantity,
-        R.Location_Name AS Resource_Location, R.Status AS Resource_Status,
-        VA.Assignment_id AS VolunteerAssignmentId, VA.Status AS VolunteerAssignmentStatus,
-        V.Volunteer_id, V.Skills AS Volunteer_Skill, V.Availability AS Volunteer_Status,
-        V.Location_Name AS Volunteer_Location
-      FROM Incident_Reports IR
-      LEFT JOIN AI_Analysis AI ON IR.Report_id = AI.Report_id
-      LEFT JOIN Resource_Assignments RA ON IR.Report_id = RA.Report_id
-      LEFT JOIN Resources R ON RA.Resource_id = R.Resource_id
-      LEFT JOIN Volunteer_Assignments VA ON IR.Report_id = VA.Report_id
-      LEFT JOIN Volunteers V ON VA.Volunteer_id = V.Volunteer_id
-      WHERE IR.Report_id = @ReportId
-    `);
+        // ==========================================
+        // GET REPORT + AI ANALYSIS
+        // ==========================================
 
-        if (result.recordset.length === 0) {
-            return res.status(404).json({ message: "Report not found" });
+        const reportRequest = new sql.Request();
+
+        reportRequest.input(
+            "ReportId",
+            sql.Int,
+            reportId
+        );
+
+        const reportResult = await reportRequest.query(`
+
+            SELECT
+                IR.Report_id,
+                IR.User_id,
+                IR.Disaster_id,
+                IR.Title,
+                IR.Description,
+                IR.Category,
+                IR.Severity,
+                IR.Priority,
+                IR.Location_Name,
+                IR.Latitude,
+                IR.Longitude,
+                IR.Status,
+                IR.Created_At,
+                IR.Photo_Path,
+
+                AI.AI_Category,
+                AI.AI_Severity,
+                AI.AI_Priority,
+                AI.Misinformation_Score,
+                AI.AI_Summary,
+                AI.AI_Visual_Findings,
+                AI.AI_Recommendation,
+                AI.Analyzed_At
+
+            FROM Incident_Reports IR
+
+            LEFT JOIN AI_Analysis AI
+                ON IR.Report_id = AI.Report_id
+
+            WHERE IR.Report_id = @ReportId
+
+        `);
+
+        if (reportResult.recordset.length === 0) {
+
+            return res.status(404).json({
+                message: "Report not found"
+            });
+
         }
 
-        const firstRow = result.recordset[0];
+        const firstRow =
+            reportResult.recordset[0];
+
+
+        // ==========================================
+        // CREATE REPORT OBJECT
+        // ==========================================
+
+        const hasAIAnalysis =
+            firstRow.AI_Summary ||
+            firstRow.AI_Category ||
+            firstRow.AI_Severity;
+
+
         const reportData = {
+
             Report_id: firstRow.Report_id,
             Title: firstRow.Title,
             Description: firstRow.Description,
@@ -1071,58 +984,181 @@ router.get("/:reportId", async (req, res) => {
             Status: firstRow.Status,
             Created_At: firstRow.Created_At,
             Photo_Path: firstRow.Photo_Path,
-            AI_Analysis: firstRow.AI_Summary ? {
-                Category: firstRow.AI_Category,
-                Severity: firstRow.AI_Severity,
-                Priority: firstRow.AI_Priority,
-                Misinformation_Score: firstRow.Misinformation_Score,
-                Summary: firstRow.AI_Summary,
-                Visual_Findings: firstRow.AI_Visual_Findings,
-                Recommendation: firstRow.AI_Recommendation,
-                Analyzed_At: firstRow.Analyzed_At
-            } : null,
+
+            AI_Analysis: hasAIAnalysis
+                ? {
+                    Category: firstRow.AI_Category,
+                    Severity: firstRow.AI_Severity,
+                    Priority: firstRow.AI_Priority,
+                    Misinformation_Score:
+                        firstRow.Misinformation_Score,
+                    Summary: firstRow.AI_Summary,
+                    Visual_Findings:
+                        firstRow.AI_Visual_Findings,
+                    Recommendation:
+                        firstRow.AI_Recommendation,
+                    Analyzed_At:
+                        firstRow.Analyzed_At
+                }
+                : null,
+
             Resources: [],
             Volunteers: []
+
         };
 
-        const resourceSet = new Set();
-        const volunteerSet = new Set();
 
-        result.recordset.forEach((row) => {
-            if (row.Resource_id && !resourceSet.has(row.Resource_id)) {
-                resourceSet.add(row.Resource_id);
-                reportData.Resources.push({
-                    Assignment_id: row.ResourceAssignmentId,
-                    Resource_id: row.Resource_id,
-                    Resource_Name: row.Resource_Name,
-                    Resource_Type: row.Resource_Type,
-                    Quantity: row.Quantity,
-                    Resource_Location: row.Resource_Location,
-                    Resource_Status: row.Resource_Status,
-                    Assignment_Status: row.ResourceAssignmentStatus
-                });
-            }
+        // ==========================================
+        // GET ASSIGNED RESOURCES
+        // ==========================================
 
-            if (row.Volunteer_id && !volunteerSet.has(row.Volunteer_id)) {
-                volunteerSet.add(row.Volunteer_id);
-                reportData.Volunteers.push({
-                    Assignment_id: row.VolunteerAssignmentId,
-                    Volunteer_id: row.Volunteer_id,
-                    Skill: row.Volunteer_Skill,
-                    Status: row.Volunteer_Status,
-                    Location: row.Volunteer_Location,
-                    Assignment_Status: row.VolunteerAssignmentStatus
-                });
-            }
-        });
+        const resourceRequest =
+            new sql.Request();
+
+        resourceRequest.input(
+            "ReportId",
+            sql.Int,
+            reportId
+        );
+
+        const resourceResult =
+            await resourceRequest.query(`
+
+                SELECT
+                    RA.Assignment_id,
+                    RA.Status AS Assignment_Status,
+
+                    R.Resource_id,
+                    R.Resource_Name,
+                    R.Resource_Type,
+                    R.Quantity,
+                    R.Location_Name AS Resource_Location,
+                    R.Status AS Resource_Status
+
+                FROM Resource_Assignments RA
+
+                INNER JOIN Resources R
+                    ON RA.Resource_id = R.Resource_id
+
+                WHERE RA.Report_id = @ReportId
+
+                ORDER BY RA.Assignment_id DESC
+
+            `);
+
+
+        reportData.Resources =
+            resourceResult.recordset.map(row => ({
+
+                Assignment_id:
+                    row.Assignment_id,
+
+                Resource_id:
+                    row.Resource_id,
+
+                Resource_Name:
+                    row.Resource_Name,
+
+                Resource_Type:
+                    row.Resource_Type,
+
+                Quantity:
+                    row.Quantity,
+
+                Resource_Location:
+                    row.Resource_Location,
+
+                Resource_Status:
+                    row.Resource_Status,
+
+                Assignment_Status:
+                    row.Assignment_Status
+
+            }));
+
+
+        // ==========================================
+        // GET ASSIGNED VOLUNTEERS
+        // ==========================================
+
+        const volunteerRequest =
+            new sql.Request();
+
+        volunteerRequest.input(
+            "ReportId",
+            sql.Int,
+            reportId
+        );
+
+        const volunteerResult =
+            await volunteerRequest.query(`
+
+                SELECT
+                    VA.Assignment_id,
+                    VA.Status AS Assignment_Status,
+
+                    V.Volunteer_id,
+                    V.Skills AS Volunteer_Skill,
+                    V.Availability AS Volunteer_Status,
+                    V.Location_Name AS Volunteer_Location
+
+                FROM Volunteer_Assignments VA
+
+                INNER JOIN Volunteers V
+                    ON VA.Volunteer_id = V.Volunteer_id
+
+                WHERE VA.Report_id = @ReportId
+
+                ORDER BY VA.Assignment_id DESC
+
+            `);
+
+
+        reportData.Volunteers =
+            volunteerResult.recordset.map(row => ({
+
+                Assignment_id:
+                    row.Assignment_id,
+
+                Volunteer_id:
+                    row.Volunteer_id,
+
+                Skill:
+                    row.Volunteer_Skill,
+
+                Status:
+                    row.Volunteer_Status,
+
+                Location:
+                    row.Volunteer_Location,
+
+                Assignment_Status:
+                    row.Assignment_Status
+
+            }));
+
+
+        // ==========================================
+        // FINAL RESPONSE
+        // ==========================================
 
         res.status(200).json(reportData);
-    } catch (error) {
-        console.error("Get Report Error:", error);
-        res.status(500).json({ message: "Server Error" });
-    }
-});
 
+    }
+    catch (error) {
+
+        console.error(
+            "Get Report Error:",
+            error
+        );
+
+        res.status(500).json({
+            message: "Server Error"
+        });
+
+    }
+
+});
 
 // ==========================================
 // UPDATE REPORT STATUS
@@ -1196,24 +1232,106 @@ router.put("/:reportId/status", async (req, res) => {
 
         const result = await request.query(`
 
-            UPDATE Incident_Reports
+    UPDATE Incident_Reports
 
-            SET Status = @Status
+    SET Status = @Status
 
-            WHERE Report_id = @ReportId;
+    WHERE Report_id = @ReportId;
 
 
-            SELECT
+    SELECT
 
-                Report_id,
-                Title,
-                Status
+        Report_id,
+        Title,
+        Status
 
-            FROM Incident_Reports
+    FROM Incident_Reports
 
-            WHERE Report_id = @ReportId;
+    WHERE Report_id = @ReportId;
+
+`);
+
+
+            // ==========================================
+            // RELEASE VOLUNTEER WHEN REPORT IS RESOLVED
+            // ==========================================
+
+            if (status === "Resolved") {
+
+                const releaseRequest =
+                    new sql.Request();
+
+                releaseRequest.input(
+                    "ReportId",
+                    sql.Int,
+                    reportId
+                );
+
+                const assignedVolunteers =
+                    await releaseRequest.query(`
+
+                SELECT Volunteer_id
+
+                FROM Volunteer_Assignments
+
+                WHERE Report_id = @ReportId
+                  AND Status = 'Active'
+
+            `);
+
+
+                // Mark assignment as completed
+
+                const completeRequest =
+                    new sql.Request();
+
+                completeRequest.input(
+                    "ReportId",
+                    sql.Int,
+                    reportId
+                );
+
+                await completeRequest.query(`
+
+            UPDATE Volunteer_Assignments
+
+            SET Status = 'Completed'
+
+            WHERE Report_id = @ReportId
+              AND Status = 'Active'
 
         `);
+
+
+                // Make the volunteer available again
+
+                for (
+                    const assignment
+                    of assignedVolunteers.recordset
+                ) {
+
+                    const volunteerRequest =
+                        new sql.Request();
+
+                    volunteerRequest.input(
+                        "VolunteerId",
+                        sql.Int,
+                        assignment.Volunteer_id
+                    );
+
+                    await volunteerRequest.query(`
+
+                UPDATE Volunteers
+
+                SET Availability = 'Available'
+
+                WHERE Volunteer_id = @VolunteerId
+
+            `);
+
+                }
+
+            }
 
 
         console.log(
@@ -1263,45 +1381,59 @@ router.post("/:reportId/assign-resource", async (req, res) => {
         const { reportId } = req.params;
         const { resourceId } = req.body;
 
-
         // ==========================================
-        // CHECK EXISTING ACTIVE ASSIGNMENT
+        // CHECK RESOURCE AVAILABILITY
         // ==========================================
 
-        const checkRequest = new sql.Request();
+        const resourceCheckRequest = new sql.Request();
 
-
-        checkRequest.input(
-            "ReportId",
+        resourceCheckRequest.input(
+            "ResourceId",
             sql.Int,
-            reportId
+            resourceId
         );
 
+        const resourceResult = await resourceCheckRequest.query(`
 
-        const existingAssignment =
-            await checkRequest.query(`
+    SELECT
+        Resource_id,
+        Resource_Name,
+        Resource_Type,
+        Quantity,
+        Status
 
-                SELECT *
+    FROM Resources
 
-                FROM Resource_Assignments
+    WHERE Resource_id = @ResourceId
 
-                WHERE Report_id = @ReportId
-                  AND Status = 'Active'
+`);
 
-            `);
+        if (resourceResult.recordset.length === 0) {
 
-
-        if (existingAssignment.recordset.length > 0) {
-
-            return res.status(400).json({
-
-                message:
-                    "Resource already assigned to this report"
-
+            return res.status(404).json({
+                message: "Resource not found"
             });
 
         }
 
+        const resource =
+            resourceResult.recordset[0];
+
+
+        // ==========================================
+        // CHECK QUANTITY
+        // ==========================================
+
+        if (Number(resource.Quantity) <= 0) {
+
+            return res.status(400).json({
+
+                message:
+                    "This resource is currently unavailable because its quantity is 0."
+
+            });
+
+        }
 
         // ==========================================
         // INSERT RESOURCE ASSIGNMENT
@@ -1341,6 +1473,29 @@ router.post("/:reportId/assign-resource", async (req, res) => {
             )
 
         `);
+
+        // ==========================================
+        // DECREASE RESOURCE QUANTITY
+        // ==========================================
+
+        const quantityRequest = new sql.Request();
+
+        quantityRequest.input(
+            "ResourceId",
+            sql.Int,
+            resourceId
+        );
+
+        await quantityRequest.query(`
+
+    UPDATE Resources
+
+    SET Quantity = Quantity - 1
+
+    WHERE Resource_id = @ResourceId
+      AND Quantity > 0
+
+`);
 
 
         res.json({
@@ -1421,14 +1576,12 @@ router.post("/:reportId/assign-volunteer", async (req, res) => {
         }
 
 
-
         // ==========================================
-        // CHECK VOLUNTEER AVAILABILITY
+        // CHECK VOLUNTEER
         // ==========================================
 
         const volunteerRequest =
             new sql.Request();
-
 
         volunteerRequest.input(
             "VolunteerId",
@@ -1440,16 +1593,15 @@ router.post("/:reportId/assign-volunteer", async (req, res) => {
         const volunteerResult =
             await volunteerRequest.query(`
 
-                SELECT
+        SELECT
+            Volunteer_id,
+            Availability
 
-                    Volunteer_id,
-                    Availability
+        FROM Volunteers
 
-                FROM Volunteers
+        WHERE Volunteer_id = @VolunteerId
 
-                WHERE Volunteer_id = @VolunteerId
-
-            `);
+    `);
 
 
         if (volunteerResult.recordset.length === 0) {
@@ -1464,20 +1616,41 @@ router.post("/:reportId/assign-volunteer", async (req, res) => {
         }
 
 
-        const volunteer =
-            volunteerResult.recordset[0];
+        // ==========================================
+        // CHECK ACTIVE ASSIGNMENT
+        // ==========================================
+
+        const activeAssignmentRequest =
+            new sql.Request();
+
+        activeAssignmentRequest.input(
+            "VolunteerId",
+            sql.Int,
+            volunteerId
+        );
+
+
+        const activeAssignmentResult =
+            await activeAssignmentRequest.query(`
+
+        SELECT Assignment_id
+
+        FROM Volunteer_Assignments
+
+        WHERE Volunteer_id = @VolunteerId
+          AND Status = 'Active'
+
+    `);
 
 
         if (
-            String(volunteer.Availability)
-                .trim()
-                .toLowerCase() !== "available"
+            activeAssignmentResult.recordset.length > 0
         ) {
 
             return res.status(400).json({
 
                 message:
-                    "This volunteer is currently busy and cannot be assigned."
+                    "This volunteer is currently assigned to another active report."
 
             });
 
