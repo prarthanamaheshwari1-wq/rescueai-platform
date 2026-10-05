@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const { sql } = require("../config/db");
+const { getResourceRecommendations } = require("../services/resourcePlanner");
 
 
 // ==========================================
@@ -354,6 +355,106 @@ router.post("/assign", async (req, res) => {
 
             message:
                 "Server Error"
+
+        });
+
+    }
+
+});
+
+
+// ==========================================
+// GET RESOURCE RECOMMENDATIONS FOR REPORT
+// ==========================================
+
+router.get("/recommendations/:reportId", async (req, res) => {
+
+    try {
+
+        const { reportId } = req.params;
+
+        const request = new sql.Request();
+
+        request.input(
+            "ReportId",
+            sql.Int,
+            reportId
+        );
+
+        // ==========================================
+        // GET REPORT CATEGORY + SEVERITY
+        // ==========================================
+
+        const reportResult = await request.query(`
+
+            SELECT
+                Report_id,
+                Category,
+                Severity
+
+            FROM Incident_Reports
+
+            WHERE Report_id = @ReportId
+
+        `);
+
+        if (reportResult.recordset.length === 0) {
+
+            return res.status(404).json({
+
+                message:
+                    "Report not found."
+
+            });
+
+        }
+
+        const report =
+            reportResult.recordset[0];
+
+
+        // ==========================================
+        // GET INTELLIGENT RESOURCE RECOMMENDATIONS
+        // ==========================================
+
+        const recommendations =
+            await getResourceRecommendations(
+                report.Category,
+                report.Severity
+            );
+
+
+        // ==========================================
+        // RETURN RECOMMENDATIONS
+        // ==========================================
+
+        res.status(200).json({
+
+            reportId:
+                report.Report_id,
+
+            category:
+                report.Category,
+
+            severity:
+                report.Severity,
+
+            recommendations
+
+        });
+
+    }
+    catch (error) {
+
+        console.error(
+            "Resource Recommendation Error:",
+            error
+        );
+
+        res.status(500).json({
+
+            message:
+                "Failed to generate resource recommendations."
 
         });
 

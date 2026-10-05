@@ -365,16 +365,122 @@ function viewReport(reportId) {
 
 async function assignResource(reportId) {
 
-    const resourceId = prompt(
-        "Enter Resource ID:\n1 = Ambulance\n2 = Medical Kit\n3 = Relief Truck\n4 = Fire Brigade"
-    );
-
-    if (!resourceId) return;
-
     try {
 
+
+        // ==========================================
+        // GET INTELLIGENT RESOURCE RECOMMENDATIONS
+        // ==========================================
+
+        const recommendationResponse = await fetch(
+            `http://localhost:5000/api/resources/recommendations/${reportId}`,
+            {
+                cache: "no-store"
+            }
+        );
+
+        if (recommendationResponse.ok) {
+
+            const recommendationData =
+                await recommendationResponse.json();
+
+            const recommendedTypes =
+                recommendationData.recommendations
+                    .map(item => item.resourceType)
+                    .join(", ");
+
+            if (recommendedTypes) {
+
+                alert(
+                    "AI Resource Recommendation:\n\n" +
+                    recommendedTypes +
+                    "\n\nYou can now choose a resource from the available list."
+                );
+
+            }
+        }
+
+
+        // Get actual resources from the database
+        const resourcesResponse = await fetch(
+            "http://localhost:5000/api/resources",
+            {
+                cache: "no-store"
+            }
+        );
+
+        if (!resourcesResponse.ok) {
+            throw new Error(
+                `Resources API Error: ${resourcesResponse.status}`
+            );
+        }
+
+        const resources =
+            await resourcesResponse.json();
+
+        // Show only resources with available quantity
+        const availableResources =
+            resources.filter(resource =>
+                Number(resource.Quantity || 0) > 0
+            );
+
+        if (availableResources.length === 0) {
+
+            alert(
+                "No resources are currently available."
+            );
+
+            return;
+        }
+
+        // Create a list using actual database resources
+        const resourceList =
+            availableResources
+                .map(resource =>
+                    `${resource.Resource_id} = ${resource.Resource_Name} (${resource.Resource_Type}, Qty: ${resource.Quantity})`
+                )
+                .join("\n");
+
+        const resourceId =
+            prompt(
+                "Enter Resource ID:\n\n" +
+                resourceList
+            );
+
+        if (!resourceId) return;
+
+        const selectedResourceId =
+            parseInt(resourceId);
+
+        if (isNaN(selectedResourceId)) {
+
+            alert(
+                "Please enter a valid Resource ID."
+            );
+
+            return;
+        }
+
+        // Check whether the entered Resource ID exists
+        const selectedResource =
+            availableResources.find(
+                resource =>
+                    Number(resource.Resource_id) ===
+                    selectedResourceId
+            );
+
+        if (!selectedResource) {
+
+            alert(
+                "Invalid Resource ID. Please select an ID from the list."
+            );
+
+            return;
+        }
+
+        // Assign the selected resource to the report
         const response = await fetch(
-            "http://localhost:5000/api/resources/assign",
+            `http://localhost:5000/api/reports/${reportId}/assign-resource`,
             {
                 method: "POST",
                 headers: {
@@ -382,7 +488,7 @@ async function assignResource(reportId) {
                 },
                 body: JSON.stringify({
                     reportId,
-                    resourceId: parseInt(resourceId)
+                    resourceId: selectedResourceId
                 })
             }
         );
@@ -390,24 +496,161 @@ async function assignResource(reportId) {
         const data =
             await response.json();
 
-        alert(data.message);
+        if (!response.ok) {
+
+            alert(
+                data.message ||
+                "Resource assignment failed."
+            );
+
+            return;
+        }
+
+        alert(
+            data.message ||
+            "Resource assigned successfully."
+        );
+
+        // Reload reports after assignment
+        await loadReports();
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "Assign Resource Error:",
+            error
+        );
 
-        alert("Assignment Failed");
+        alert(
+            "Unable to assign resource. Please check the backend."
+        );
     }
 }
 
 async function assignVolunteer(reportId) {
-    const volunteerId = prompt(
-        "Enter Volunteer ID:\n1 = Rahul Sharma\n2 = Priya Singh\n3 = Aman Verma"
-    );
-
-    if (!volunteerId) return;
 
     try {
+
+        // Get all volunteers
+        const volunteersResponse = await fetch(
+            "http://localhost:5000/api/volunteers",
+            {
+                cache: "no-store"
+            }
+        );
+
+        if (!volunteersResponse.ok) {
+            throw new Error(
+                `Volunteers API Error: ${volunteersResponse.status}`
+            );
+        }
+
+        const volunteers =
+            await volunteersResponse.json();
+
+
+        if (!volunteers || volunteers.length === 0) {
+
+            alert(
+                "No volunteers are currently registered."
+            );
+
+            return;
+        }
+
+
+        // Show ALL volunteers with their current status
+        const volunteerList =
+            volunteers
+                .map(volunteer => {
+
+                    const availability =
+                        String(
+                            volunteer.Availability || "Unknown"
+                        )
+                            .trim()
+                            .toLowerCase();
+
+                    const status =
+                        availability === "available"
+                            ? "Available"
+                            : "Busy";
+
+                    return (
+                        `${volunteer.Volunteer_id} = ` +
+                        `${volunteer.FullName || volunteer.fullName || "Volunteer"} ` +
+                        `(${volunteer.Skills || "No skill listed"}) - ` +
+                        `${status}`
+                    );
+
+                })
+                .join("\n");
+
+
+        const volunteerId =
+            prompt(
+                "Enter Volunteer ID:\n\n" +
+                volunteerList +
+                "\n\nAvailable volunteers can be assigned."
+            );
+
+
+        if (!volunteerId) return;
+
+
+        const selectedVolunteerId =
+            parseInt(volunteerId);
+
+
+        if (isNaN(selectedVolunteerId)) {
+
+            alert(
+                "Please enter a valid Volunteer ID."
+            );
+
+            return;
+        }
+
+
+        // Find selected volunteer
+        const selectedVolunteer =
+            volunteers.find(
+                volunteer =>
+                    Number(volunteer.Volunteer_id) ===
+                    selectedVolunteerId
+            );
+
+
+        if (!selectedVolunteer) {
+
+            alert(
+                "Invalid Volunteer ID. Please select an ID from the list."
+            );
+
+            return;
+        }
+
+
+        // Check current availability
+        const availability =
+            String(
+                selectedVolunteer.Availability || ""
+            )
+                .trim()
+                .toLowerCase();
+
+
+        if (availability !== "available") {
+
+            alert(
+                "This volunteer is currently busy and cannot be assigned."
+            );
+
+            return;
+        }
+
+
+        // Assign volunteer
         const response = await fetch(
             `http://localhost:5000/api/reports/${reportId}/assign-volunteer`,
             {
@@ -416,23 +659,48 @@ async function assignVolunteer(reportId) {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    volunteerId: parseInt(volunteerId)
+                    volunteerId:
+                        selectedVolunteerId
                 })
             }
         );
 
-        const data = await response.json();
+
+        const data =
+            await response.json();
+
 
         if (!response.ok) {
-            alert(data.message || "Volunteer assignment failed.");
+
+            alert(
+                data.message ||
+                "Volunteer assignment failed."
+            );
+
             return;
         }
 
-        alert(data.message || "Volunteer assigned successfully.");
+
+        alert(
+            data.message ||
+            "Volunteer assigned successfully."
+        );
+
+
+        // Refresh reports
+        await loadReports();
+
 
     } catch (error) {
-        console.error("Assign Volunteer Error:", error);
-        alert("Unable to assign volunteer. Please check the backend.");
+
+        console.error(
+            "Assign Volunteer Error:",
+            error
+        );
+
+        alert(
+            "Unable to assign volunteer. Please check the backend."
+        );
     }
 }
 

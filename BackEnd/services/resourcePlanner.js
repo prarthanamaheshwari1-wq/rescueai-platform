@@ -95,26 +95,30 @@ function getRecommendedResourceTypes(category, severity) {
 
 function getAvailableResourceRecommendations(resources, recommendedTypes) {
 
-    return recommendedTypes.map(type => {
+    return recommendedTypes
+        .map(type => {
 
-        const matchingResources = resources.filter(
-            resource =>
-                String(resource.Resource_Type || "").trim().toLowerCase() ===
-                String(type || "").trim().toLowerCase()
+            const matchingResources = resources.filter(
+                resource =>
+                    String(resource.Resource_Type || "").trim().toLowerCase() ===
+                    String(type || "").trim().toLowerCase()
+            );
+
+            const availableResources = matchingResources.filter(
+                resource =>
+                    Number(resource.Quantity || 0) > 0
+            );
+
+            return {
+                resourceType: type,
+                resources: availableResources
+            };
+        })
+        .filter(
+            recommendation =>
+                recommendation.resources.length > 0
         );
-
-        const availableResources = matchingResources.filter(
-            resource =>
-                Number(resource.Quantity || 0) > 0
-        );
-
-        return {
-            resourceType: type,
-            resources: availableResources
-        };
-    });
 }
-
 
 async function getResourceRecommendations(category, severity) {
 
@@ -133,6 +137,7 @@ async function getResourceRecommendations(category, severity) {
             Status
         FROM Resources
         WHERE Quantity > 0
+            AND LOWER(LTRIM(RTRIM(Status))) = 'available'
     `;
 
     return getAvailableResourceRecommendations(
