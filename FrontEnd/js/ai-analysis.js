@@ -1,5 +1,10 @@
 console.log("AI Analysis Dashboard Loaded");
 
+let categoryChartInstance = null;
+let priorityChartInstance = null;
+let allAnalyses = [];
+
+
 async function loadAnalysis() {
 
     try {
@@ -10,30 +15,43 @@ async function loadAnalysis() {
 
         const analyses = await response.json();
 
+        allAnalyses = analyses;
+
+
+        // ==============================
         // Category Statistics
+        // ==============================
 
         const categoryCounts = {};
 
         analyses.forEach(item => {
 
-            const category = item.AI_Category || "Other";
+            const category =
+                item.AI_Category || "Other";
 
             categoryCounts[category] =
                 (categoryCounts[category] || 0) + 1;
 
         });
 
+
+        // ==============================
         // Priority Statistics
+        // ==============================
 
         const priorityCounts = {
             Critical: 0,
+            High: 0,
             Moderate: 0,
             Low: 0
         };
 
+
         analyses.forEach(item => {
 
-            const priority = item.AI_Priority;
+            const priority =
+                String(item.AI_Priority || "")
+                    .trim();
 
             if (priorityCounts[priority] !== undefined) {
 
@@ -43,221 +61,413 @@ async function loadAnalysis() {
 
         });
 
-        const totalAnalysis = analyses.length;
 
-        const criticalCases = analyses.filter(
-            item => item.AI_Priority === "Critical"
-        ).length;
+        // ==============================
+        // Dashboard Statistics
+        // ==============================
 
-        const misinformationCases = analyses.filter(
-            item => Number(item.Misinformation_Score) >= 50
-        ).length;
+        const totalAnalysis =
+            analyses.length;
 
-        document.getElementById("totalAnalysis").textContent =
-            totalAnalysis;
 
-        document.getElementById("criticalCases").textContent =
-            criticalCases;
+        const criticalCases =
+            analyses.filter(
+                item =>
+                    String(item.AI_Priority || "")
+                        .trim()
+                        .toLowerCase() === "critical"
+            ).length;
 
-        document.getElementById("misinformationCases").textContent =
-            misinformationCases;
+
+        const misinformationCases =
+            analyses.filter(
+                item =>
+                    Number(item.Misinformation_Score) >= 50
+            ).length;
+
+
+        document.getElementById(
+            "totalAnalysis"
+        ).textContent = totalAnalysis;
+
+
+        document.getElementById(
+            "criticalCases"
+        ).textContent = criticalCases;
+
+
+        document.getElementById(
+            "misinformationCases"
+        ).textContent = misinformationCases;
+
+
+        // ==============================
+        // Charts
+        // ==============================
 
         createCategoryChart(categoryCounts);
+
         createPriorityChart(priorityCounts);
 
-        const container =
-            document.getElementById("analysisContainer");
 
-        container.innerHTML = "";
+        // ==============================
+        // Search
+        // ==============================
 
-        // analyses.forEach(item => {
+        const searchInput =
+            document.getElementById("searchInput");
 
-        //     let priorityClass = "low";
-        //     let badgeClass = "badge-low";
 
-        //     if (item.AI_Priority === "Critical") {
-        //         priorityClass = "critical";
-        //         badgeClass = "badge-critical";
-        //     }
-        //     else if (item.AI_Priority === "Moderate") {
-        //         priorityClass = "moderate";
-        //         badgeClass = "badge-moderate";
-        //     }
+        searchInput.addEventListener(
+            "input",
+            function () {
 
-        //     container.innerHTML += `
-        //         <div class="analysis-card ${priorityClass}">
+                const searchText =
+                    this.value.trim().toLowerCase();
 
-        //             <h2>
-        //                 Report #${item.Report_id}
-        //             </h2>
 
-        //             <p>
-        //                 <strong>Category:</strong>
-        //                 ${item.AI_Category}
-        //             </p>
+                const filteredAnalyses =
+                    allAnalyses.filter(item => {
 
-        //             <p>
-        //                 <strong>Severity:</strong>
-        //                 ${item.AI_Severity}
-        //             </p>
+                        return (
 
-        //             <p>
-        //                 <strong>Priority:</strong>
-        //                 <span class="badge ${badgeClass}">
-        //                     ${item.AI_Priority}
-        //                 </span>
-        //             </p>
+                            String(item.Report_id || "")
+                                .toLowerCase()
+                                .includes(searchText)
 
-        //             <p>
-        //                 <strong>Misinformation Score:</strong>
-        //                 ${item.Misinformation_Score}%
-        //             </p>
+                            ||
 
-        //             <p>
-        //                 <strong>Summary:</strong>
-        //                 ${item.AI_Summary}
-        //             </p>
+                            String(item.AI_Category || "")
+                                .toLowerCase()
+                                .includes(searchText)
 
-        //             <p>
-        //                 <strong>Recommendation:</strong>
-        //                 ${item.AI_Recommendation}
-        //             </p>
+                            ||
 
-        //             <button onclick="viewReport(${item.Report_id})">
-        //                 View Report
-        //             </button>
+                            String(item.AI_Priority || "")
+                                .toLowerCase()
+                                .includes(searchText)
 
-        //         </div>
-        //     `;
-        // });
+                            ||
 
-        const cardsHTML = analyses.map((item) => {
-            const priority = item.AI_Priority || "Low";
-            let priorityClass = "low";
-            let badgeClass = "badge-low";
+                            String(item.AI_Severity || "")
+                                .toLowerCase()
+                                .includes(searchText)
 
-            if (priority === "Critical") {
-                priorityClass = "critical";
-                badgeClass = "badge-critical";
-            } else if (priority === "Moderate") {
-                priorityClass = "moderate";
-                badgeClass = "badge-moderate";
+                            ||
+
+                            String(item.AI_Summary || "")
+                                .toLowerCase()
+                                .includes(searchText)
+
+                            ||
+
+                            String(item.AI_Recommendation || "")
+                                .toLowerCase()
+                                .includes(searchText)
+
+                            ||
+
+                            String(item.AI_Visual_Findings || "")
+                                .toLowerCase()
+                                .includes(searchText)
+
+                        );
+
+                    });
+
+
+                renderAnalysisCards(filteredAnalyses);
+
             }
+        );
 
-            return `
-        <div class="analysis-card ${priorityClass}">
-            <h2>Report #${item.Report_id}</h2>
-            <p><strong>Category:</strong> ${item.AI_Category || "N/A"}</p>
-            <p><strong>Severity:</strong> ${item.AI_Severity || "N/A"}</p>
-            <p>
-                <strong>Priority:</strong> 
-                <span class="badge ${badgeClass}">${priority}</span>
-            </p>
-            <p><strong>Misinformation Score:</strong> ${item.Misinformation_Score ?? 0}%</p>
-            <p><strong>Summary:</strong> ${item.AI_Summary || "No summary provided."}</p>
-            <p><strong>Visual Findings:</strong><br> ${item.AI_Visual_Findings || "No image evidence available."}</p>
-            <p><strong>Recommendation:</strong> ${item.AI_Recommendation || "No recommendation available."}</p>
-            <button onclick="viewReport(${item.Report_id})">View Report</button>
-        </div>
-    `;
-        }).join("");
 
-        container.innerHTML = cardsHTML;
+        // Initial cards
+        renderAnalysisCards(analyses);
+
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "AI Analysis Load Error:",
+            error
+        );
 
     }
 
 }
 
-loadAnalysis();
+
+// ==========================================
+// Render Analysis Cards
+// ==========================================
+
+function renderAnalysisCards(analyses) {
+
+    const container =
+        document.getElementById(
+            "analysisContainer"
+        );
 
 
-let categoryChartInstance = null;
-let priorityChartInstance = null;
+    container.innerHTML = "";
+
+
+    if (analyses.length === 0) {
+
+        container.innerHTML = `
+            <p style="
+                text-align:center;
+                color:#6b7280;
+                font-size:18px;
+                padding:30px;
+            ">
+                No analysis found.
+            </p>
+        `;
+
+        return;
+
+    }
+
+
+    const cardsHTML =
+        analyses.map(item => {
+
+            const priority =
+                item.AI_Priority || "Low";
+
+
+            let priorityClass = "low";
+            let badgeClass = "badge-low";
+
+
+            if (priority === "Critical") {
+
+                priorityClass = "critical";
+                badgeClass = "badge-critical";
+
+            }
+
+            else if (priority === "High") {
+
+                priorityClass = "high";
+                badgeClass = "badge-high";
+
+            }
+
+            else if (priority === "Moderate") {
+
+                priorityClass = "moderate";
+                badgeClass = "badge-moderate";
+
+            }
+
+
+            return `
+                <div class="analysis-card ${priorityClass}">
+
+                    <h2>
+                        Report #${item.Report_id}
+                    </h2>
+
+                    <p>
+                        <strong>Category:</strong>
+                        ${item.AI_Category || "N/A"}
+                    </p>
+
+                    <p>
+                        <strong>Severity:</strong>
+                        ${item.AI_Severity || "N/A"}
+                    </p>
+
+                    <p>
+                        <strong>Priority:</strong>
+                        <span class="badge ${badgeClass}">
+                            ${priority}
+                        </span>
+                    </p>
+
+                    <p>
+                        <strong>Misinformation Score:</strong>
+                        ${item.Misinformation_Score ?? 0}%
+                    </p>
+
+                    <p>
+                        <strong>Summary:</strong>
+                        ${item.AI_Summary || "No summary provided."}
+                    </p>
+
+                    <p>
+                        <strong>Visual Findings:</strong><br>
+                        ${item.AI_Visual_Findings || "No image evidence available."}
+                    </p>
+
+                    <p>
+                        <strong>Recommendation:</strong>
+                        ${item.AI_Recommendation || "No recommendation available."}
+                    </p>
+
+                    <button
+                        onclick="viewReport(${item.Report_id})">
+                        View Report
+                    </button>
+
+                </div>
+            `;
+
+        }).join("");
+
+
+    container.innerHTML = cardsHTML;
+
+}
+
+
+// ==========================================
+// Category Chart
+// ==========================================
 
 function createCategoryChart(categoryCounts) {
 
     const ctx =
-        document.getElementById("categoryChart");
+        document.getElementById(
+            "categoryChart"
+        );
+
 
     if (categoryChartInstance) {
+
         categoryChartInstance.destroy();
+
     }
 
-    categoryChartInstance = new Chart(ctx, {
 
-        type: "bar",
+    categoryChartInstance =
+        new Chart(ctx, {
 
-        data: {
+            type: "bar",
 
-            labels: Object.keys(categoryCounts),
+            data: {
 
-            datasets: [{
+                labels:
+                    Object.keys(categoryCounts),
 
-                label: "Incidents",
+                datasets: [{
 
-                data: Object.values(categoryCounts)
+                    label: "Incidents",
 
-            }]
-        },
+                    data:
+                        Object.values(categoryCounts)
 
-        options: {
+                }]
 
-            responsive: true,
+            },
 
-            plugins: {
+            options: {
 
-                legend: {
-                    display: false
+                responsive: true,
+
+                plugins: {
+
+                    legend: {
+
+                        display: false
+
+                    }
+
                 }
 
             }
 
-        }
-
-    });
+        });
 
 }
+
+
+// ==========================================
+// Priority Pie Chart
+// ==========================================
 
 function createPriorityChart(priorityCounts) {
 
     const ctx =
-        document.getElementById("priorityChart");
+        document.getElementById(
+            "priorityChart"
+        );
+
 
     if (priorityChartInstance) {
+
         priorityChartInstance.destroy();
+
     }
 
-    priorityChartInstance = new Chart(ctx, {
 
-        type: "pie",
+    priorityChartInstance =
+        new Chart(ctx, {
 
-        data: {
+            type: "pie",
 
-            labels: Object.keys(priorityCounts),
+            data: {
 
-            datasets: [{
+                labels: [
+                    "Critical",
+                    "High",
+                    "Moderate",
+                    "Low"
+                ],
 
-                data: Object.values(priorityCounts)
+                datasets: [{
 
-            }]
-        },
+                    data: [
+                        priorityCounts.Critical,
+                        priorityCounts.High,
+                        priorityCounts.Moderate,
+                        priorityCounts.Low
+                    ]
 
-        options: {
+                }]
 
-            responsive: true
+            },
 
-        }
+            options: {
 
-    });
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                plugins: {
+
+                    legend: {
+
+                        position: "bottom"
+
+                    }
+
+                }
+
+            }
+
+        });
 
 }
+
+
+// ==========================================
+// View Report
+// ==========================================
 
 function viewReport(reportId) {
 
     window.location.href =
         `report-details.html?id=${reportId}`;
+
 }
+
+
+// ==========================================
+// Load Dashboard
+// ==========================================
+
+loadAnalysis();

@@ -226,10 +226,9 @@ async function loadReportDetails() {
 
                 <p style="white-space: pre-line;">
 
-                   ${
-                        aiAnalysis.Recommendation ||
-                        "No AI recommendation available."
-                    }
+                   ${aiAnalysis.Recommendation ||
+            "No AI recommendation available."
+            }
 
                 </p>
 
@@ -250,165 +249,60 @@ async function loadReportDetails() {
 
 
             <!-- =====================================
-                 ASSIGNED RESOURCE
-            ====================================== -->
+     ASSIGNED RESOURCES
+====================================== -->
 
-            <hr>
+<hr>
 
-            <h3>🚒 Assigned Resource</h3>
+<h3>🚒 Assigned Resources</h3>
 
-
-            ${report.Resource_Name &&
-                report.Resource_Name !== "None"
-
-                ?
-
-                `
-
-                <div class="detail">
-
-                    <span class="label">
-                        Resource Name:
-                    </span>
-
-                    ${report.Resource_Name}
-
-                </div>
-
-
-                <div class="detail">
-
-                    <span class="label">
-                        Resource Type:
-                    </span>
-
-                    ${report.Resource_Type || "N/A"}
-
-                </div>
-
-
-                <div class="detail">
-
-                    <span class="label">
-                        Resource Status:
-                    </span>
-
-                    ${report.Resource_Status || "N/A"}
-
-                </div>
-
-
-                <div class="detail">
-
-                    <span class="label">
-                        Assignment Status:
-                    </span>
-
-                    ${report.Assignment_Status || "N/A"}
-
-                </div>
-
-                `
-
-                :
-
-                `
-
-                <p style="color:orange;">
-
-                    No resource assigned yet.
-
-                </p>
-
-                `
+${report.Resources && report.Resources.length > 0
+                ? report.Resources.map(res => `
+        <div class="detail">
+            <span class="label">Resource Name:</span> ${res.Resource_Name} (${res.Resource_Type || "N/A"})
+        </div>
+        <div class="detail">
+            <span class="label">Resource Location:</span> ${res.Resource_Location || "N/A"}
+        </div>
+        <div class="detail">
+            <span class="label">Quantity Remaining:</span> ${res.Quantity}
+        </div>
+        <div class="detail">
+            <span class="label">Assignment Status:</span> ${res.Assignment_Status || "N/A"}
+        </div>
+        <br>
+    `).join("")
+                : `<p style="color:orange;">No resource assigned yet.</p>`
             }
 
-
             <!-- =====================================
-                 ASSIGNED VOLUNTEER
-            ====================================== -->
+     ASSIGNED VOLUNTEERS
+====================================== -->
 
-            <hr>
+<hr>
 
-            <h3>👨‍🚒 Assigned Volunteer</h3>
+<h3>👨‍🚒 Assigned Volunteers</h3>
 
-
-            ${report.Volunteer_id &&
-                report.Volunteer_id !== 0
-
-                ?
-
-                `
-
-                <div class="detail">
-
-                    <span class="label">
-                        Volunteer ID:
-                    </span>
-
-                    ${report.Volunteer_id}
-
-                </div>
-
-
-                <div class="detail">
-
-                    <span class="label">
-                        Skill:
-                    </span>
-
-                    ${report.Volunteer_Skill || "N/A"}
-
-                </div>
-
-
-                <div class="detail">
-
-                    <span class="label">
-                        Availability:
-                    </span>
-
-                    ${report.Volunteer_Status || "N/A"}
-
-                </div>
-
-
-                <div class="detail">
-
-                    <span class="label">
-                        Location:
-                    </span>
-
-                    ${report.Volunteer_Location || "N/A"}
-
-                </div>
-
-
-                <div class="detail">
-
-                    <span class="label">
-                        Assignment Status:
-                    </span>
-
-                    ${report.Volunteer_Assignment_Status
-                || "N/A"
-                }
-
-                </div>
-
-                `
-
-                :
-
-                `
-
-                <p style="color:orange;">
-
-                    No volunteer assigned yet.
-
-                </p>
-
-                `
+${report.Volunteers && report.Volunteers.length > 0
+                ? report.Volunteers.map(vol => `
+        <div class="detail">
+            <span class="label">Volunteer ID:</span> #${vol.Volunteer_id}
+        </div>
+        <div class="detail">
+            <span class="label">Skill:</span> ${vol.Skill || "N/A"}
+        </div>
+        <div class="detail">
+            <span class="label">Availability:</span> ${vol.Status || "N/A"}
+        </div>
+        <div class="detail">
+            <span class="label">Location:</span> ${vol.Location || "N/A"}
+        </div>
+        <div class="detail">
+            <span class="label">Assignment Status:</span> ${vol.Assignment_Status || "N/A"}
+        </div>
+        <br>
+    `).join("")
+                : `<p style="color:orange;">No volunteer assigned yet.</p>`
             }
 
 
