@@ -10,7 +10,7 @@ const fs = require("fs");
 
 const { generateReportSafely } = require("../services/gemini");
 const { processDisasterImage } = require("../services/imageProcessor");
-
+const { analyzeImageAuthenticity } = require("../services/imageAuthenticity");
 // ==========================================
 // SAFE DELETE FILE
 // ==========================================
@@ -78,7 +78,8 @@ router.post(
                 !description ||
                 !category ||
                 !severity ||
-                !locationName
+                !locationName ||
+                !req.file
             ) {
 
                 if (req.file) {
@@ -88,7 +89,7 @@ router.post(
                 return res.status(400).json({
 
                     message:
-                        "Title, description, category, severity and location are required."
+                        "Title, description, category, severity, location, and a mandatory photo are required."
 
                 });
 
@@ -201,6 +202,13 @@ router.post(
             let photoPath = null;
             let imageData = null;
 
+            let imageAuthenticity = {
+                status: null,
+                prediction: null,
+                message: null,
+                manualReviewRequired: null
+            };
+
             if (req.file) {
 
                 photoPath =
@@ -246,6 +254,13 @@ router.post(
                         )
 
                 };
+                // ==========================================
+                // PRELIMINARY IMAGE-AUTHENTICITY SCREENING
+                // ==========================================
+
+                imageAuthenticity = await analyzeImageAuthenticity(
+                    req.file.path
+                );
 
             }
 
@@ -702,6 +717,30 @@ IMPORTANT FACTUAL RULES:
                 aiRecommendation
             );
 
+            aiRequest.input(
+                "ImageAuthenticityStatus",
+                sql.NVarChar(50),
+                imageAuthenticity.status
+            );
+
+            aiRequest.input(
+                "ImageAuthenticityPrediction",
+                sql.NVarChar(20),
+                imageAuthenticity.prediction
+            );
+
+            aiRequest.input(
+                "ImageAuthenticityReason",
+                sql.NVarChar(sql.MAX),
+                imageAuthenticity.message
+            );
+
+            aiRequest.input(
+                "ImageAuthenticityManualReview",
+                sql.Bit,
+                imageAuthenticity.manualReviewRequired
+            );
+
 
             await aiRequest.query(`
 
@@ -714,7 +753,11 @@ IMPORTANT FACTUAL RULES:
                     Misinformation_Score,
                     AI_Summary,
                     AI_Visual_Findings,
-                    AI_Recommendation
+                    AI_Recommendation,
+                    Image_Authenticity_Status,
+                    Image_Authenticity_Prediction,
+                    Image_Authenticity_Reason,
+                    Image_Authenticity_Manual_Review
                 )
 
                 VALUES
@@ -726,7 +769,11 @@ IMPORTANT FACTUAL RULES:
                     @MIScore,
                     @AISummary,
                     @AIVisualFindings,
-                    @AIRecommendation
+                    @AIRecommendation,
+                    @ImageAuthenticityStatus,
+                    @ImageAuthenticityPrediction,
+                    @ImageAuthenticityReason,
+                    @ImageAuthenticityManualReview
                 )
 
             `);
@@ -2602,7 +2649,7 @@ router.post(
             if (
                 volunteer.Availability &&
                 volunteer.Availability.toLowerCase() !==
-                    "available"
+                "available"
             ) {
 
                 return res.status(400).json({
