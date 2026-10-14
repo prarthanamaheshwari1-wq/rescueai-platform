@@ -186,3 +186,43 @@ h1 {
     }
 
 }
+
+/* ==========================================
+   ADDITIONAL STYLING - ROLE DROPDOWN
+   ========================================== */
+
+/* Match the role dropdown with existing inputs */
+#volunteerForm select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background-color: #ffffff;
+    color: #333333;
+    font-family: inherit;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+}
+
+/* Focus effect for dropdown */
+#volunteerForm select:focus {
+    border-color: #6c63ff;
+    box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
+}
+
+/* Consistent styling for form inputs */
+#volunteerForm input:focus {
+    border-color: #6c63ff;
+    box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
+}
+
+/* Make dropdown and inputs responsive */
+@media (max-width: 600px) {
+    #volunteerForm select,
+    #volunteerForm input {
+        width: 100%;
+        min-width: 0;
+    }
+}

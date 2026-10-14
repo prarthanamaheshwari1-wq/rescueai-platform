@@ -2,6 +2,87 @@ console.log("Volunteer Dashboard Loaded");
 
 
 // ==========================================
+// API BASE
+// ==========================================
+
+// ==========================================
+// API BASE
+// ==========================================
+
+const API_BASE =
+    `${window.location.protocol}//${window.location.hostname}:5000/api`;
+
+
+// ==========================================
+// AUTHENTICATED FETCH
+// ==========================================
+
+async function authenticatedFetch(
+    url,
+    options = {}
+) {
+
+    if (window.RescueAIAuthReady) {
+        await window.RescueAIAuthReady;
+    }
+
+    let token = window.RescueAIAccessToken;
+
+    if (!token && typeof window.ensureAuthenticated === "function") {
+        try {
+            token = await window.ensureAuthenticated();
+        } catch (err) {
+            console.error("Auth helper check failed:", err);
+        }
+    }
+
+    if (!token) {
+
+        console.error(
+            "Access token not available."
+        );
+
+        window.location.replace(
+            "authority-login.html"
+        );
+
+        throw new Error(
+            "Authentication required."
+        );
+    }
+
+
+    const headers = {
+
+        ...(options.headers || {}),
+
+        "Authorization":
+            `Bearer ${token}`
+
+    };
+
+
+    const response = await fetch(
+        url,
+        {
+            ...options,
+            headers,
+            credentials: "include"
+        }
+    );
+
+    if (response.status === 401) {
+        console.error("Unauthorized request. Redirecting to login.");
+        window.location.replace("authority-login.html");
+        throw new Error("Unauthorized");
+    }
+
+    return response;
+
+}
+
+
+// ==========================================
 // Load Volunteers
 // ==========================================
 
@@ -10,9 +91,19 @@ async function loadVolunteers() {
     try {
 
         const response =
-            await fetch(
-                "http://localhost:5000/api/volunteers"
+            await authenticatedFetch(
+                `${API_BASE}/volunteers`
             );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `Failed to fetch volunteers. Status: ${response.status}`
+            );
+
+        }
+
 
         const volunteers =
             await response.json();
@@ -20,7 +111,8 @@ async function loadVolunteers() {
 
         document.getElementById(
             "totalVolunteers"
-        ).textContent = volunteers.length;
+        ).textContent =
+            volunteers.length;
 
 
         document.getElementById(
@@ -28,9 +120,12 @@ async function loadVolunteers() {
         ).textContent =
             volunteers.filter(
                 v =>
-                    String(v.Availability)
+                    String(
+                        v.Availability
+                    )
                         .trim()
-                        .toLowerCase() === "available"
+                        .toLowerCase() ===
+                    "available"
             ).length;
 
 
@@ -39,9 +134,12 @@ async function loadVolunteers() {
         ).textContent =
             volunteers.filter(
                 v =>
-                    String(v.Availability)
+                    String(
+                        v.Availability
+                    )
                         .trim()
-                        .toLowerCase() === "busy"
+                        .toLowerCase() ===
+                    "busy"
             ).length;
 
 
@@ -54,42 +152,98 @@ async function loadVolunteers() {
         container.innerHTML = "";
 
 
-        volunteers.forEach(volunteer => {
+        volunteers.forEach(
+            volunteer => {
 
-            container.innerHTML += `
-                <div class="volunteer-card">
+                container.innerHTML += `
 
-                    <h2>${volunteer.Full_Name}</h2>
+                    <div class="volunteer-card">
 
-                    <p>
-                        <strong>Skill:</strong>
-                        ${volunteer.Skills || "N/A"}
-                    </p>
+                        <h2>
+                            ${volunteer.Full_Name}
+                        </h2>
 
-                    <p>
-                        <strong>Email:</strong>
-                        ${volunteer.Email || "N/A"}
-                    </p>
 
-                    <p>
-                        <strong>Phone:</strong>
-                        ${volunteer.Phone_No || "N/A"}
-                    </p>
+                        <p>
 
-                    <p>
-                        <strong>Location:</strong>
-                        ${volunteer.Location_Name || "N/A"}
-                    </p>
+                            <strong>
+                                Skill:
+                            </strong>
 
-                    <p>
-                        <strong>Status:</strong>
-                        ${volunteer.Availability || "N/A"}
-                    </p>
+                            ${volunteer.Skills ||
+                    "N/A"
+                    }
 
-                </div>
-            `;
+                        </p>
 
-        });
+
+                        <p>
+
+                            <strong>
+                                Email:
+                            </strong>
+
+                            ${volunteer.Email ||
+                    "N/A"
+                    }
+
+                        </p>
+
+
+                        
+                        <p>
+                            <strong>Role:</strong>
+                            ${volunteer.Role ||
+                                "N/A"
+                            }
+                        </p>
+
+
+
+                        <p>
+
+                            <strong>
+                                Phone:
+                            </strong>
+
+                            ${volunteer.Phone_No ||
+                    "N/A"
+                    }
+
+                        </p>
+
+
+                        <p>
+
+                            <strong>
+                                Location:
+                            </strong>
+
+                            ${volunteer.Location_Name ||
+                    "N/A"
+                    }
+
+                        </p>
+
+
+                        <p>
+
+                            <strong>
+                                Status:
+                            </strong>
+
+                            ${volunteer.Availability ||
+                    "N/A"
+                    }
+
+                        </p>
+
+                    </div>
+
+                `;
+
+            }
+        );
 
 
     } catch (error) {
@@ -140,6 +294,11 @@ if (volunteerForm) {
                     "password"
                 ).value;
 
+            const role =
+                document.getElementById(
+                    "role"
+                ).value;
+
 
             const phoneNo =
                 document.getElementById(
@@ -162,9 +321,10 @@ if (volunteerForm) {
             try {
 
                 const response =
-                    await fetch(
-                        "http://localhost:5000/api/volunteers",
+                    await authenticatedFetch(
+                        `${API_BASE}/volunteers`,
                         {
+
                             method: "POST",
 
                             headers: {
@@ -185,6 +345,9 @@ if (volunteerForm) {
 
                                 phoneNo:
                                     phoneNo,
+
+                                role:
+                                    role,
 
                                 skills:
                                     skills,
@@ -233,6 +396,7 @@ if (volunteerForm) {
                     error
                 );
 
+
                 alert(
                     "Unable to connect to the backend."
                 );
@@ -245,6 +409,28 @@ if (volunteerForm) {
 }
 
 
-// Load volunteers when page opens
+// ==========================================
+// INITIAL LOAD
+// ==========================================
 
-loadVolunteers();
+document.addEventListener(
+    "DOMContentLoaded",
+    async () => {
+
+        try {
+
+            await window.RescueAIAuthReady;
+
+            await loadVolunteers();
+
+        } catch (error) {
+
+            console.error(
+                "Authentication initialization failed:",
+                error
+            );
+
+        }
+
+    }
+);

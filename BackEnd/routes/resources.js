@@ -3,13 +3,14 @@ const router = express.Router();
 
 const { sql } = require("../config/db");
 const { getResourceRecommendations } = require("../services/resourcePlanner");
+const { authenticateToken, authorizeRoles } = require("../middleware/auth");
 
 
 // ==========================================
 // ADD RESOURCE
 // ==========================================
 
-router.post("/", async (req, res) => {
+router.post("/", authenticateToken, authorizeRoles("authority"), async (req, res) => {
 
     try {
 
@@ -134,7 +135,7 @@ router.get("/", async (req, res) => {
 // UPDATE RESOURCE STATUS
 // ==========================================
 
-router.put("/:resourceId/status", async (req, res) => {
+router.put("/:resourceId/status", authenticateToken, authorizeRoles("authority"), async (req, res) => {
 
     try {
 
@@ -186,7 +187,7 @@ router.put("/:resourceId/status", async (req, res) => {
 // ASSIGN RESOURCE TO REPORT
 // ==========================================
 
-router.post("/assign", async (req, res) => {
+router.post("/assign", authenticateToken, authorizeRoles("authority"), async (req, res) => {
 
     try {
 
@@ -367,7 +368,7 @@ router.post("/assign", async (req, res) => {
 // GET RESOURCE RECOMMENDATIONS FOR REPORT
 // ==========================================
 
-router.get("/recommendations/:reportId", async (req, res) => {
+router.get("/recommendations/:reportId", authenticateToken, authorizeRoles("authority"), async (req, res) => {
 
     try {
 
@@ -467,7 +468,7 @@ router.get("/recommendations/:reportId", async (req, res) => {
 // GET ASSIGNED RESOURCES
 // ==========================================
 
-router.get("/assignments", async (req, res) => {
+router.get("/assignments", authenticateToken, authorizeRoles("authority"), async (req, res) => {
 
     try {
 

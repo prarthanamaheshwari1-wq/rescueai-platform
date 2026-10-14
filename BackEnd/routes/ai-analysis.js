@@ -2,8 +2,13 @@ const express = require("express");
 const router = express.Router();
 
 const { sql } = require("../config/db");
+const { authenticateToken, authorizeRoles } = require("../middleware/auth");
 
-router.get("/", async (req, res) => {
+router.get(
+    "/",
+    authenticateToken,
+    authorizeRoles("authority", "admin", "volunteer"),
+    async (req, res) => {
 
     try {
 

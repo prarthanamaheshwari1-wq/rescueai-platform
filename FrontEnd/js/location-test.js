@@ -150,9 +150,11 @@ emergencyForm.addEventListener("submit", async function (event) {
     formData.append("longitude", longitude);
     formData.append("photo", photo);
 
+    const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+
     try {
-        console.log("ABOUT TO SEND REQUEST");
-        const response = await fetch("http://localhost:5000/api/reports/emergency", {
+        console.log("ABOUT TO SEND REQUEST TO:", `${API_BASE}/reports/emergency`);
+        const response = await fetch(`${API_BASE}/reports/emergency`, {
             method: "POST",
             body: formData
         });

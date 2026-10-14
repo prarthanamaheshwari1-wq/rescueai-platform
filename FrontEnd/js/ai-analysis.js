@@ -1,16 +1,64 @@
 console.log("AI Analysis Dashboard Loaded");
 
+// Automatically matches whatever hostname the user uses (localhost or 127.0.0.1)
+const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+
 let categoryChartInstance = null;
 let priorityChartInstance = null;
 let allAnalyses = [];
 
 
+// ==========================================
+// AUTHENTICATED FETCH
+// ==========================================
+
+// ==========================================
+// AUTHENTICATED FETCH
+// ==========================================
+
+async function authenticatedFetch(url, options = {}) {
+
+    // Helper function to fetch memory token or wait for auth-guard resolution
+    let token = window.RescueAIAccessToken;
+
+    if (!token && typeof window.ensureAuthenticated === "function") {
+        try {
+            token = await window.ensureAuthenticated();
+        } catch (err) {
+            console.error("Authentication check failed:", err);
+        }
+    }
+
+    if (!token) {
+        console.error("Access token not available.");
+        window.location.replace("authority-login.html");
+        throw new Error("Authentication required.");
+    }
+
+    const headers = {
+        ...(options.headers || {}),
+        "Authorization": `Bearer ${token}`
+    };
+
+    return fetch(url, {
+        ...options,
+        headers,
+        credentials: "include"
+    });
+
+}
+
+
+// ==========================================
+// LOAD AI ANALYSIS
+// ==========================================
+
 async function loadAnalysis() {
 
     try {
 
-        const response = await fetch(
-            "http://localhost:5000/api/ai-analysis"
+        const response = await authenticatedFetch(
+            `${API_BASE}/ai-analysis`
         );
 
         const analyses = await response.json();
@@ -466,8 +514,25 @@ function viewReport(reportId) {
 }
 
 
-// ==========================================
-// Load Dashboard
+ // ==========================================
+// LOAD DASHBOARD AFTER AUTHENTICATION
 // ==========================================
 
-loadAnalysis();
+(async function () {
+    try {
+        if (typeof window.ensureAuthenticated === "function") {
+            await window.ensureAuthenticated();
+        }
+
+        if (!window.RescueAIAccessToken) {
+            window.location.replace("authority-login.html");
+            return;
+        }
+
+        await loadAnalysis();
+
+    } catch (error) {
+        console.error("Dashboard authentication failed:", error);
+        window.location.replace("authority-login.html");
+    }
+})();

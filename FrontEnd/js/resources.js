@@ -2,6 +2,87 @@ console.log("Resources Dashboard Loaded");
 
 
 // ==========================================
+// API BASE
+// ==========================================
+
+// ==========================================
+// API BASE
+// ==========================================
+
+const API_BASE =
+    `${window.location.protocol}//${window.location.hostname}:5000/api`;
+
+
+// ==========================================
+// AUTHENTICATED FETCH
+// ==========================================
+
+async function authenticatedFetch(
+    url,
+    options = {}
+) {
+
+    if (window.RescueAIAuthReady) {
+        await window.RescueAIAuthReady;
+    }
+
+    let token = window.RescueAIAccessToken;
+
+    if (!token && typeof window.ensureAuthenticated === "function") {
+        try {
+            token = await window.ensureAuthenticated();
+        } catch (err) {
+            console.error("Auth helper check failed:", err);
+        }
+    }
+
+    if (!token) {
+
+        console.error(
+            "Access token not available."
+        );
+
+        window.location.replace(
+            "authority-login.html"
+        );
+
+        throw new Error(
+            "Authentication required."
+        );
+    }
+
+
+    const headers = {
+
+        ...(options.headers || {}),
+
+        "Authorization":
+            `Bearer ${token}`
+
+    };
+
+
+    const response = await fetch(
+        url,
+        {
+            ...options,
+            headers,
+            credentials: "include"
+        }
+    );
+
+    if (response.status === 401) {
+        console.error("Unauthorized request. Redirecting to login.");
+        window.location.replace("authority-login.html");
+        throw new Error("Unauthorized");
+    }
+
+    return response;
+
+}
+
+
+// ==========================================
 // LOAD RESOURCES
 // ==========================================
 
@@ -9,18 +90,30 @@ async function loadResources() {
 
     try {
 
-        const response = await fetch(
-            "http://localhost:5000/api/resources"
-        );
+        const response =
+            await authenticatedFetch(
+                `${API_BASE}/resources`
+            );
+
 
         if (!response.ok) {
-            throw new Error("Failed to fetch resources");
+
+            throw new Error(
+                "Failed to fetch resources"
+            );
+
         }
 
-        const resources = await response.json();
+
+        const resources =
+            await response.json();
+
 
         const tableBody =
-            document.getElementById("resourceTableBody");
+            document.getElementById(
+                "resourceTableBody"
+            );
+
 
         tableBody.innerHTML = "";
 
@@ -30,68 +123,105 @@ async function loadResources() {
         // ==========================================
 
         let totalUnits = 0;
+
         let availableUnits = 0;
+
         let deployedUnits = 0;
 
         let availableRecords = 0;
+
         let deployedRecords = 0;
 
+
         // Store unique resource types
-        const resourceTypes = new Set();
+
+        const resourceTypes =
+            new Set();
 
 
-        resources.forEach(resource => {
+        resources.forEach(
+            resource => {
 
-            const quantity =
-                Number(resource.Quantity) || 0;
-
-            const status =
-                String(resource.Status || "")
-                    .trim()
-                    .toLowerCase();
+                const quantity =
+                    Number(
+                        resource.Quantity
+                    ) || 0;
 
 
-            // Add resource type
-            resourceTypes.add(
-                resource.Resource_Type || "Other"
-            );
+                const status =
+                    String(
+                        resource.Status || ""
+                    )
+                        .trim()
+                        .toLowerCase();
 
 
-            totalUnits += quantity;
+                // Add resource type
+
+                resourceTypes.add(
+                    resource.Resource_Type ||
+                    "Other"
+                );
 
 
-            if (status === "available") {
+                totalUnits +=
+                    quantity;
 
-                availableUnits += quantity;
-                availableRecords++;
+
+                if (
+                    status === "available"
+                ) {
+
+                    availableUnits +=
+                        quantity;
+
+                    availableRecords++;
+
+                }
+
+
+                if (
+                    status === "deployed"
+                ) {
+
+                    deployedUnits +=
+                        quantity;
+
+                    deployedRecords++;
+
+                }
 
             }
-
-
-            if (status === "deployed") {
-
-                deployedUnits += quantity;
-                deployedRecords++;
-
-            }
-
-        });
+        );
 
 
         // ==========================================
         // UPDATE DASHBOARD STATS
         // ==========================================
 
-        document.getElementById("totalResources")
-            .textContent = totalUnits;
+        document
+            .getElementById(
+                "totalResources"
+            )
+            .textContent =
+                totalUnits;
 
-        document.getElementById("availableResources")
-            .textContent = availableUnits;
+
+        document
+            .getElementById(
+                "availableResources"
+            )
+            .textContent =
+                availableUnits;
 
 
         // Update deployed resources card
+
         const deployedElement =
-            document.getElementById("deployedResources");
+            document.getElementById(
+                "deployedResources"
+            );
+
 
         if (deployedElement) {
 
@@ -102,8 +232,12 @@ async function loadResources() {
 
 
         // Update resource types card
+
         const resourceTypesElement =
-            document.getElementById("resourceTypes");
+            document.getElementById(
+                "resourceTypes"
+            );
+
 
         if (resourceTypesElement) {
 
@@ -117,17 +251,28 @@ async function loadResources() {
         // EMPTY RESOURCE TABLE
         // ==========================================
 
-        if (resources.length === 0) {
+        if (
+            resources.length === 0
+        ) {
 
             tableBody.innerHTML = `
+
                 <tr>
-                    <td colspan="7" style="text-align:center;">
+
+                    <td
+                        colspan="7"
+                        style="text-align:center;"
+                    >
                         No Resources Available
                     </td>
+
                 </tr>
+
             `;
 
+
             createResourceChart({});
+
 
             return;
 
@@ -138,72 +283,77 @@ async function loadResources() {
         // DISPLAY RESOURCE TABLE
         // ==========================================
 
-        resources.forEach(resource => {
+        resources.forEach(
+            resource => {
 
-            const status =
-                String(resource.Status || "").trim();
+                const status =
+                    String(
+                        resource.Status || ""
+                    ).trim();
 
-            const statusLower =
-                status.toLowerCase();
+
+                const statusLower =
+                    status.toLowerCase();
 
 
-            tableBody.innerHTML += `
+                tableBody.innerHTML += `
 
-                <tr>
+                    <tr>
 
-                    <td>
-                        ${resource.Resource_id}
-                    </td>
+                        <td>
+                            ${resource.Resource_id}
+                        </td>
 
-                    <td>
-                        ${resource.Resource_Name}
-                    </td>
+                        <td>
+                            ${resource.Resource_Name}
+                        </td>
 
-                    <td>
-                        ${resource.Resource_Type}
-                    </td>
+                        <td>
+                            ${resource.Resource_Type}
+                        </td>
 
-                    <td>
-                        ${resource.Quantity}
-                    </td>
+                        <td>
+                            ${resource.Quantity}
+                        </td>
 
-                    <td>
-                        ${resource.Location_Name}
-                    </td>
+                        <td>
+                            ${resource.Location_Name}
+                        </td>
 
-                    <td>
-                        ${status}
-                    </td>
+                        <td>
+                            ${status}
+                        </td>
 
-                    <td>
+                        <td>
 
-                        <button
-                            class="${
-                                statusLower === "available"
-                                    ? "deploy-btn"
-                                    : "available-btn"
-                            }"
-                            onclick="updateStatus(
-                                ${resource.Resource_id},
-                                '${status}'
-                            )"
-                        >
+                            <button
+                                class="${
+                                    statusLower === "available"
+                                        ? "deploy-btn"
+                                        : "available-btn"
+                                }"
+                                onclick="updateStatus(
+                                    ${resource.Resource_id},
+                                    '${status}'
+                                )"
+                            >
 
-                            ${
-                                statusLower === "available"
-                                    ? "Deploy"
-                                    : "Mark Available"
-                            }
+                                ${
+                                    statusLower === "available"
+                                        ? "Deploy"
+                                        : "Mark Available"
+                                }
 
-                        </button>
+                            </button>
 
-                    </td>
+                        </td>
 
-                </tr>
+                    </tr>
 
-            `;
+                `;
 
-        });
+            }
+        );
 
 
         // ==========================================
@@ -213,26 +363,36 @@ async function loadResources() {
         const typeCounts = {};
 
 
-        resources.forEach(resource => {
+        resources.forEach(
+            resource => {
 
-            const type =
-                resource.Resource_Type || "Other";
-
-            const quantity =
-                Number(resource.Quantity) || 0;
+                const type =
+                    resource.Resource_Type ||
+                    "Other";
 
 
-            typeCounts[type] =
-                (typeCounts[type] || 0) + quantity;
+                const quantity =
+                    Number(
+                        resource.Quantity
+                    ) || 0;
 
-        });
+
+                typeCounts[type] =
+                    (typeCounts[type] || 0) +
+                    quantity;
+
+            }
+        );
 
 
         // ==========================================
         // CREATE RESOURCE CHART
         // ==========================================
 
-        createResourceChart(typeCounts);
+        createResourceChart(
+            typeCounts
+        );
+
 
         createResourceStatusChart(
             availableUnits,
@@ -244,28 +404,34 @@ async function loadResources() {
         // LOAD ASSIGNED RESOURCES
         // ==========================================
 
-        loadAssignments();
+        await loadAssignments();
 
 
         // ==========================================
         // DEBUG / ANALYTICS LOG
         // ==========================================
 
-        console.log("Resource Analytics:", {
+        console.log(
+            "Resource Analytics:",
+            {
 
-            totalUnits,
-            availableUnits,
-            deployedUnits,
+                totalUnits,
 
-            availableRecords,
-            deployedRecords,
+                availableUnits,
 
-            resourceTypeCount:
-                resourceTypes.size,
+                deployedUnits,
 
-            typeCounts
+                availableRecords,
 
-        });
+                deployedRecords,
+
+                resourceTypeCount:
+                    resourceTypes.size,
+
+                typeCounts
+
+            }
+        );
 
 
     } catch (error) {
@@ -281,13 +447,6 @@ async function loadResources() {
 
 
 // ==========================================
-// INITIAL LOAD
-// ==========================================
-
-loadResources();
-
-
-// ==========================================
 // ADD RESOURCE
 // ==========================================
 
@@ -296,27 +455,56 @@ async function addResource() {
     try {
 
         const resourceName =
-            document.getElementById("resourceName").value.trim();
+            document
+                .getElementById(
+                    "resourceName"
+                )
+                .value
+                .trim();
+
 
         const resourceType =
-            document.getElementById("resourceType").value.trim();
+            document
+                .getElementById(
+                    "resourceType"
+                )
+                .value
+                .trim();
+
 
         const quantity =
             Number(
-                document.getElementById("quantity").value
+                document
+                    .getElementById(
+                        "quantity"
+                    )
+                    .value
             );
 
+
         const location =
-            document.getElementById("location").value.trim();
+            document
+                .getElementById(
+                    "location"
+                )
+                .value
+                .trim();
+
 
         const status =
-            document.getElementById("status").value;
+            document
+                .getElementById(
+                    "status"
+                )
+                .value;
 
 
-        if (!resourceName ||
+        if (
+            !resourceName ||
             !resourceType ||
             !quantity ||
-            !location) {
+            !location
+        ) {
 
             alert(
                 "Please fill all resource details."
@@ -327,43 +515,73 @@ async function addResource() {
         }
 
 
-        const response = await fetch(
-            "http://localhost:5000/api/resources",
-            {
+        const response =
+            await authenticatedFetch(
+                `${API_BASE}/resources`,
+                {
 
-                method: "POST",
+                    method: "POST",
 
-                headers: {
-                    "Content-Type": "application/json"
-                },
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-                body: JSON.stringify({
+                    body: JSON.stringify({
 
-                    resourceName,
-                    resourceType,
-                    quantity,
-                    location,
-                    status
+                        resourceName,
 
-                })
+                        resourceType,
 
-            }
-        );
+                        quantity,
+
+                        location,
+
+                        status
+
+                    })
+
+                }
+            );
 
 
         const data =
             await response.json();
 
 
-        alert(data.message);
+        alert(
+            data.message
+        );
 
 
         // Clear form
 
-        document.getElementById("resourceName").value = "";
-        document.getElementById("resourceType").value = "";
-        document.getElementById("quantity").value = "";
-        document.getElementById("location").value = "";
+        document
+            .getElementById(
+                "resourceName"
+            )
+            .value = "";
+
+
+        document
+            .getElementById(
+                "resourceType"
+            )
+            .value = "";
+
+
+        document
+            .getElementById(
+                "quantity"
+            )
+            .value = "";
+
+
+        document
+            .getElementById(
+                "location"
+            )
+            .value = "";
 
 
         await loadResources();
@@ -375,6 +593,7 @@ async function addResource() {
             "Add Resource Error:",
             error
         );
+
 
         alert(
             "Failed to add resource"
@@ -397,42 +616,50 @@ async function updateStatus(
     try {
 
         const newStatus =
-            String(currentStatus).toLowerCase() === "available"
+            String(
+                currentStatus
+            ).toLowerCase() === "available"
+
                 ? "Deployed"
+
                 : "Available";
 
 
-        const response = await fetch(
+        const response =
+            await authenticatedFetch(
 
-            `http://localhost:5000/api/resources/${resourceId}/status`,
+                `${API_BASE}/resources/${resourceId}/status`,
 
-            {
+                {
 
-                method: "PUT",
+                    method: "PUT",
 
-                headers: {
+                    headers: {
 
-                    "Content-Type":
-                        "application/json"
+                        "Content-Type":
+                            "application/json"
 
-                },
+                    },
 
-                body: JSON.stringify({
+                    body: JSON.stringify({
 
-                    status: newStatus
+                        status:
+                            newStatus
 
-                })
+                    })
 
-            }
+                }
 
-        );
+            );
 
 
         const data =
             await response.json();
 
 
-        alert(data.message);
+        alert(
+            data.message
+        );
 
 
         await loadResources();
@@ -444,6 +671,7 @@ async function updateStatus(
             "Update Status Error:",
             error
         );
+
 
         alert(
             "Failed to update status"
@@ -458,11 +686,16 @@ async function updateStatus(
 // RESOURCE CHART
 // ==========================================
 
-let resourceChartInstance = null;
-let resourceStatusChartInstance = null;
+let resourceChartInstance =
+    null;
+
+let resourceStatusChartInstance =
+    null;
 
 
-function createResourceChart(typeCounts) {
+function createResourceChart(
+    typeCounts
+) {
 
     const canvas =
         document.getElementById(
@@ -496,7 +729,9 @@ function createResourceChart(typeCounts) {
                 data: {
 
                     labels:
-                        Object.keys(typeCounts),
+                        Object.keys(
+                            typeCounts
+                        ),
 
                     datasets: [
 
@@ -506,7 +741,9 @@ function createResourceChart(typeCounts) {
                                 "Resource Quantity",
 
                             data:
-                                Object.values(typeCounts)
+                                Object.values(
+                                    typeCounts
+                                )
 
                         }
 
@@ -575,7 +812,9 @@ function createResourceStatusChart(
 
     // Destroy previous chart
 
-    if (resourceStatusChartInstance) {
+    if (
+        resourceStatusChartInstance
+    ) {
 
         resourceStatusChartInstance.destroy();
 
@@ -594,8 +833,11 @@ function createResourceStatusChart(
                 data: {
 
                     labels: [
+
                         "Available",
+
                         "Deployed"
+
                     ],
 
                     datasets: [
@@ -606,8 +848,11 @@ function createResourceStatusChart(
                                 "Resource Units",
 
                             data: [
+
                                 availableUnits,
+
                                 deployedUnits
+
                             ]
 
                         }
@@ -663,9 +908,10 @@ async function loadAssignments() {
 
     try {
 
-        const response = await fetch(
-            "http://localhost:5000/api/resources/assignments"
-        );
+        const response =
+            await authenticatedFetch(
+                `${API_BASE}/resources/assignments`
+            );
 
 
         if (!response.ok) {
@@ -699,15 +945,23 @@ async function loadAssignments() {
         // NO ASSIGNMENTS
         // ==========================================
 
-        if (assignments.length === 0) {
+        if (
+            assignments.length === 0
+        ) {
 
             tableBody.innerHTML = `
+
                 <tr>
-                    <td colspan="7"
-                        style="text-align:center;">
+
+                    <td
+                        colspan="7"
+                        style="text-align:center;"
+                    >
                         No resources assigned yet
                     </td>
+
                 </tr>
+
             `;
 
             return;
@@ -719,45 +973,47 @@ async function loadAssignments() {
         // DISPLAY ASSIGNMENTS
         // ==========================================
 
-        assignments.forEach(assignment => {
+        assignments.forEach(
+            assignment => {
 
-            tableBody.innerHTML += `
+                tableBody.innerHTML += `
 
-                <tr>
+                    <tr>
 
-                    <td>
-                        ${assignment.Assignment_id}
-                    </td>
+                        <td>
+                            ${assignment.Assignment_id}
+                        </td>
 
-                    <td>
-                        ${assignment.Report_id}
-                    </td>
+                        <td>
+                            ${assignment.Report_id}
+                        </td>
 
-                    <td>
-                        ${assignment.Resource_Name}
-                    </td>
+                        <td>
+                            ${assignment.Resource_Name}
+                        </td>
 
-                    <td>
-                        ${assignment.Resource_Type}
-                    </td>
+                        <td>
+                            ${assignment.Resource_Type}
+                        </td>
 
-                    <td>
-                        ${assignment.Quantity}
-                    </td>
+                        <td>
+                            ${assignment.Quantity}
+                        </td>
 
-                    <td>
-                        ${assignment.Location_Name}
-                    </td>
+                        <td>
+                            ${assignment.Location_Name}
+                        </td>
 
-                    <td>
-                        ${assignment.Status}
-                    </td>
+                        <td>
+                            ${assignment.Status}
+                        </td>
 
-                </tr>
+                    </tr>
 
-            `;
+                `;
 
-        });
+            }
+        );
 
 
     } catch (error) {
@@ -770,3 +1026,30 @@ async function loadAssignments() {
     }
 
 }
+
+
+// ==========================================
+// INITIAL LOAD
+// ==========================================
+
+document.addEventListener(
+    "DOMContentLoaded",
+    async () => {
+
+        try {
+
+            await window.RescueAIAuthReady;
+
+            await loadResources();
+
+        } catch (error) {
+
+            console.error(
+                "Authentication initialization failed:",
+                error
+            );
+
+        }
+
+    }
+);

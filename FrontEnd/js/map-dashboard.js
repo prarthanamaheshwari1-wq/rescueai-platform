@@ -4,6 +4,68 @@ let reportMarkers = [];
 let highRiskCircles = [];
 let resourceMarkers = [];
 
+// Automatically matches whatever hostname the user uses (localhost or 127.0.0.1)
+const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+
+
+// ==============================
+// AUTHENTICATED FETCH
+// ==============================
+
+async function authenticatedFetch(url, options = {}) {
+
+    if (window.RescueAIAuthReady) {
+        await window.RescueAIAuthReady;
+    }
+
+    let token = window.RescueAIAccessToken;
+
+    if (!token && typeof window.ensureAuthenticated === "function") {
+        try {
+            token = await window.ensureAuthenticated();
+        } catch (err) {
+            console.error("Auth helper check failed:", err);
+        }
+    }
+
+    if (!token) {
+
+        console.error("Access token not available.");
+
+        window.location.replace(
+            "authority-login.html"
+        );
+
+        throw new Error("Authentication required.");
+
+    }
+
+    const headers = {
+        ...(options.headers || {}),
+        "Authorization": `Bearer ${token}`
+    };
+
+    const response = await fetch(url, {
+        ...options,
+        headers,
+        credentials: "include"
+    });
+
+    if (response.status === 401) {
+        console.error("Unauthorized request. Redirecting to login.");
+        window.location.replace("authority-login.html");
+        throw new Error("Unauthorized");
+    }
+
+    return response;
+
+}
+
+
+// ==============================
+// MAP INITIALIZATION
+// ==============================
+
 const map = L.map("map").setView(
     [28.938244, 77.635475],
     15
@@ -15,6 +77,11 @@ L.tileLayer(
         attribution: "&copy; OpenStreetMap contributors"
     }
 ).addTo(map);
+
+
+// ==============================
+// LOAD REPORTS ON MAP
+// ==============================
 
 async function loadReportsOnMap() {
 
@@ -33,8 +100,8 @@ async function loadReportsOnMap() {
         reportMarkers = [];
         highRiskCircles = [];
 
-        const response = await fetch(
-            "http://localhost:5000/api/reports"
+        const response = await authenticatedFetch(
+            `${API_BASE}/reports`
         );
 
         const reports = await response.json();
@@ -155,6 +222,11 @@ async function loadReportsOnMap() {
 
 }
 
+
+// ==============================
+// LOAD RESOURCES ON MAP
+// ==============================
+
 async function loadResourcesOnMap() {
 
     try {
@@ -166,8 +238,8 @@ async function loadResourcesOnMap() {
 
         resourceMarkers = [];
 
-        const response = await fetch(
-            "http://localhost:5000/api/resources"
+        const response = await authenticatedFetch(
+            `${API_BASE}/resources`
         );
 
         const resources = await response.json();
@@ -193,11 +265,11 @@ async function loadResourcesOnMap() {
                 )
                     .addTo(map)
                     .bindPopup(`
-        <b>${resource.Resource_Name}</b><br>
-        Type: ${resource.Resource_Type}<br>
-        Quantity: ${resource.Quantity}<br>
-        Status: ${resource.Status}
-    `);
+                        <b>${resource.Resource_Name}</b><br>
+                        Type: ${resource.Resource_Type}<br>
+                        Quantity: ${resource.Quantity}<br>
+                        Status: ${resource.Status}
+                    `);
 
                 resourceMarkers.push(resourceMarker);
 
@@ -321,7 +393,7 @@ async function loadMapWeather(city = "Delhi") {
     try {
 
         const response = await fetch(
-            `http://localhost:5000/api/weather?city=${encodeURIComponent(city)}`
+            `${API_BASE}/weather?city=${encodeURIComponent(city)}`
         );
 
         if (!response.ok) {
@@ -503,9 +575,34 @@ if (weatherCityInput) {
 // INITIAL LOAD
 // ==============================
 
-loadReportsOnMap();
-loadResourcesOnMap();
-loadMapWeather();
+document.addEventListener(
+    "DOMContentLoaded",
+    async () => {
+
+        try {
+
+            await window.RescueAIAuthReady;
+
+            await loadReportsOnMap();
+            await loadResourcesOnMap();
+            await loadMapWeather();
+
+        } catch (error) {
+
+            console.error(
+                "Authentication initialization failed:",
+                error
+            );
+
+        }
+
+    }
+);
+
+
+// ==============================
+// AUTO REFRESH
+// ==============================
 
 setInterval(() => {
 

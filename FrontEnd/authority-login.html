@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>RescueAI - Login</title>
+
+    <link rel="stylesheet" href="css/authority-login.css">
+</head>
+
+<body>
+
+    <!-- Background -->
+    <div class="universe"></div>
+    <div class="space-light"></div>
+
+    <!-- Header -->
+    <header>
+        <h1>🚨 RescueAI</h1>
+        <p>AI Powered Disaster Response Platform</p>
+    </header>
+
+    <!-- Login -->
+    <main class="login-container">
+
+        <div class="login-card">
+
+            <h2>🔐 Login</h2>
+
+            <p class="login-message">
+                Please enter your credentials to access RescueAI.
+            </p>
+
+            <form id="loginForm">
+
+                <label for="email">Email</label>
+
+                <input
+                    type="email"
+                    id="email"
+                    placeholder="Enter your email"
+                    required
+                >
+
+                <label for="password">Password</label>
+
+                <input
+                    type="password"
+                    id="password"
+                    placeholder="Enter your password"
+                    required
+                >
+
+                <button type="submit">
+                    Login & Continue
+                </button>
+
+            </form>
+
+            <p id="errorMessage"></p>
+
+            <button
+                type="button"
+                class="back-button"
+                onclick="window.location.href='index.html'">
+                ← Back to Home
+            </button>
+
+        </div>
+
+    </main>
+
+    <script src="js/authority-login.js"></script>
+    <script src="js/starfield.js"></script>
+    <script src="js/earth.js"></script>
+
+</body>
+</html>
+

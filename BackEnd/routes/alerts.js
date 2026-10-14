@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const { sql } = require("../config/db");
+const { authenticateToken, authorizeRoles } = require("../middleware/auth");
+
 
 // GET /api/alerts - Fetch only the latest active alert per city and type
 router.get("/", async (req, res) => {
@@ -53,43 +55,47 @@ router.get("/", async (req, res) => {
 
 // PUT /api/alerts/:id/resolve
 
-router.put("/:id/resolve", async (req, res) => {
+router.put(
+    "/:id/resolve",
+    authenticateToken,
+    authorizeRoles("authority"),
+    async (req, res) => {
 
-    try {
+        try {
 
-        const alertId = req.params.id;
+            const alertId = req.params.id;
 
-        const request = new sql.Request();
+            const request = new sql.Request();
 
-        request.input(
-            "AlertId",
-            sql.Int,
-            alertId
-        );
+            request.input(
+                "AlertId",
+                sql.Int,
+                alertId
+            );
 
-        await request.query(`
+            await request.query(`
             UPDATE Alerts
             SET Status = 'Resolved'
             WHERE Alert_id = @AlertId
         `);
 
-        return res.status(200).json({
-            message: "Alert resolved successfully"
-        });
+            return res.status(200).json({
+                message: "Alert resolved successfully"
+            });
 
-    } catch (error) {
+        } catch (error) {
 
-        console.error(
-            "Resolve Alert Error:",
-            error.message
-        );
+            console.error(
+                "Resolve Alert Error:",
+                error.message
+            );
 
-        return res.status(500).json({
-            message: "Failed to resolve alert"
-        });
+            return res.status(500).json({
+                message: "Failed to resolve alert"
+            });
 
-    }
+        }
 
-});
+    });
 
 module.exports = router;

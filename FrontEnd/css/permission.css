@@ -1,0 +1,239 @@
+/* ==========================================
+   AegisAI - Global Styles
+========================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    min-height: 100vh;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f4f7fb;
+    color: #172033;
+    display: flex;
+    flex-direction: column;
+}
+
+
+/* ==========================================
+   Header
+========================================== */
+
+.header {
+    width: 100%;
+    padding: 25px 7%;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e9f0;
+}
+
+.logo h1 {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
+.logo p {
+    margin-top: 5px;
+    color: #687386;
+    font-size: 14px;
+}
+
+
+/* ==========================================
+   Main Container
+========================================== */
+
+.main-container {
+    width: 100%;
+    max-width: 1200px;
+    margin: auto;
+    padding: 70px 25px;
+}
+
+
+/* ==========================================
+   Hero Section
+========================================== */
+
+.hero-section {
+    text-align: center;
+    max-width: 750px;
+    margin: 0 auto 55px;
+}
+
+.hero-section h2 {
+    font-size: 46px;
+    line-height: 1.15;
+    margin-bottom: 20px;
+}
+
+.hero-description {
+    color: #687386;
+    font-size: 17px;
+    line-height: 1.7;
+}
+
+
+/* ==========================================
+   Access Cards
+========================================== */
+
+.access-section {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 30px;
+    max-width: 900px;
+    margin: auto;
+}
+
+.access-card {
+    background: #ffffff;
+    border: 1px solid #e3e8f0;
+    border-radius: 18px;
+    padding: 40px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(20, 35, 60, 0.07);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.access-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 35px rgba(20, 35, 60, 0.12);
+}
+
+.card-icon {
+    width: 65px;
+    height: 65px;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #eef3ff;
+    font-size: 30px;
+}
+
+.access-card h3 {
+    font-size: 25px;
+    margin-bottom: 15px;
+}
+
+.access-card p {
+    color: #687386;
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 105px;
+    margin-bottom: 25px;
+}
+
+
+/* ==========================================
+   Buttons
+========================================== */
+
+.access-card button {
+    width: 100%;
+    padding: 14px 20px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.access-card button:hover {
+    transform: scale(1.02);
+    opacity: 0.9;
+}
+
+.public-card button {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.authority-card button {
+    background: #172033;
+    color: #ffffff;
+}
+
+
+/* ==========================================
+   Security Notice
+========================================== */
+
+.security-notice {
+    max-width: 900px;
+    margin: 40px auto 0;
+    padding: 20px 25px;
+    background: #ffffff;
+    border: 1px solid #e3e8f0;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.security-icon {
+    font-size: 28px;
+}
+
+.security-notice h4 {
+    margin-bottom: 5px;
+    font-size: 16px;
+}
+
+.security-notice p {
+    color: #687386;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+
+/* ==========================================
+   Footer
+========================================== */
+
+.footer {
+    margin-top: auto;
+    padding: 20px;
+    text-align: center;
+    background: #ffffff;
+    border-top: 1px solid #e5e9f0;
+}
+
+.footer p {
+    color: #7a8495;
+    font-size: 13px;
+}
+
+
+/* ==========================================
+   Responsive Design
+========================================== */
+
+@media (max-width: 768px) {
+
+    .main-container {
+        padding: 50px 20px;
+    }
+
+    .hero-section h2 {
+        font-size: 35px;
+    }
+
+    .hero-description {
+        font-size: 15px;
+    }
+
+    .access-section {
+        grid-template-columns: 1fr;
+    }
+
+    .access-card {
+        padding: 30px;
+    }
+}

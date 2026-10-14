@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,12 +8,14 @@
 
     <link rel="stylesheet" href="css/volunteers.css">
 </head>
+
 <body>
 
     <div class="container">
 
         <h1>🤝 Volunteer Management</h1>
 
+        <!-- VOLUNTEER STATISTICS -->
         <div class="stats">
 
             <div class="card">
@@ -32,14 +35,53 @@
 
         </div>
 
-        <div id="volunteerContainer"
-             class="volunteer-container">
+        <!-- ADD VOLUNTEER FORM -->
+        <section class="add-volunteer">
 
+            <h2>➕ Add New Volunteer</h2>
+
+            <form id="volunteerForm">
+
+                <input type="text" id="fullName" placeholder="Full Name" required>
+
+                <input type="email" id="email" placeholder="Email Address" required>
+
+                <input type="password" id="password" placeholder="Password" minlength="8" required>
+
+
+                <select id="role" required>
+                    <option value="">Select Role</option>
+                    <option value="Volunteer">Volunteer</option>
+                    <option value="Authority">Authority</option>
+                </select>
+
+
+                <input type="tel" id="phoneNo" placeholder="Phone Number">
+
+                <input type="text" id="skills" placeholder="Skills (e.g. First Aid)">
+
+                <input type="text" id="locationName" placeholder="Location">
+
+                <button type="submit">
+                    Add Volunteer
+                </button>
+
+            </form>
+
+        </section>
+
+        <!-- VOLUNTEER LIST -->
+        <h2>Registered Volunteers</h2>
+
+        <div id="volunteerContainer" class="volunteer-container">
         </div>
 
     </div>
 
+    <!-- Initialize authentication before dashboard JavaScript -->
+    <script src="js/auth-guard.js"></script>
     <script src="js/volunteers.js"></script>
 
 </body>
+
 </html>

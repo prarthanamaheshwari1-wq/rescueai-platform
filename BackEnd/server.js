@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const path = require("path");
 const fs = require("fs");
 const dns = require("dns");
@@ -21,22 +22,20 @@ const resourceRoutes = require("./routes/resources");
 const volunteerRoutes = require("./routes/volunteers");
 const alertRoutes = require("./routes/alerts");
 const { connectDB } = require("./config/db");
+const { connectRedis } = require("./config/redis");
 
 const app = express();
 app.disable("x-powered-by");
 
-// app.use(cors({
-//     origin: [
-//         "http://127.0.0.1:3000",
-//         "http://127.0.0.1:8000"
-//     ]
-// }));
-
 const allowedOrigins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "http://localhost:3002",
+    "http://127.0.0.1:3002",
     process.env.CLIENT_URL
 ].filter(Boolean);
 
@@ -46,14 +45,16 @@ app.use(
             if (!origin || allowedOrigins.includes(origin)) {
                 callback(null, true);
             } else {
-                callback(new Error(`CORS blocked for origin: ${origin}`));
+                callback(new Error("Origin not allowed by CORS"));
             }
         },
         credentials: true,
-        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization"]
     })
 );
 app.use(express.json({ limit: "1mb" }));
+app.use(cookieParser());
 
 // 1. Ensure uploads directory exists inside BackEnd
 const uploadsPath = path.join(__dirname, "uploads");
@@ -91,8 +92,10 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
     await connectDB();
-    app.listen(PORT, () => {
-        console.log(`Server running at http://localhost:${PORT}`);
+    await connectRedis();
+
+    app.listen(PORT, "0.0.0.0", () => {
+        console.log(`Server running on port ${PORT}`);
     });
 };
 

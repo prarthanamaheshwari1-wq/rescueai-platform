@@ -4,12 +4,73 @@ const reportId =
     params.get("id") ||
     params.get("reportId");
 
+// Automatically matches whatever hostname the user uses (localhost or 127.0.0.1)
+const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+
+
+// ==========================================
+// AUTHENTICATED FETCH
+// ==========================================
+
+async function authenticatedFetch(url, options = {}) {
+
+    if (window.RescueAIAuthReady) {
+        await window.RescueAIAuthReady;
+    }
+
+    let token = window.RescueAIAccessToken;
+
+    if (!token && typeof window.ensureAuthenticated === "function") {
+        try {
+            token = await window.ensureAuthenticated();
+        } catch (err) {
+            console.error("Auth helper check failed:", err);
+        }
+    }
+
+    if (!token) {
+
+        console.error(
+            "Access token not available."
+        );
+
+        window.location.replace(
+            "authority-login.html"
+        );
+
+        throw new Error(
+            "Authentication required."
+        );
+    }
+
+    const headers = {
+        ...(options.headers || {}),
+        "Authorization": `Bearer ${token}`
+    };
+
+    const response = await fetch(url, {
+        ...options,
+        headers,
+        credentials: "include"
+    });
+
+    if (response.status === 401) {
+        console.error("Unauthorized request. Redirecting to login.");
+        window.location.replace("authority-login.html");
+        throw new Error("Unauthorized");
+    }
+
+    return response;
+}
+
+// ==========================================
+// LOAD REPORT DETAILS
+// ==========================================
 
 async function loadReportDetails() {
 
     const container =
         document.getElementById("reportDetails");
-
 
     if (!reportId) {
 
@@ -22,9 +83,10 @@ async function loadReportDetails() {
 
     try {
 
-        const response = await fetch(
-            `http://localhost:5000/api/reports/${reportId}`
-        );
+        const response =
+            await authenticatedFetch(
+                `${API_BASE}/reports/${reportId}`
+            );
 
 
         if (!response.ok) {
@@ -32,7 +94,6 @@ async function loadReportDetails() {
             throw new Error(
                 `Status ${response.status}`
             );
-
         }
 
 
@@ -54,7 +115,9 @@ async function loadReportDetails() {
             return;
         }
 
-        const aiAnalysis = report.AI_Analysis || {};
+
+        const aiAnalysis =
+            report.AI_Analysis || {};
 
 
         // =========================================
@@ -71,7 +134,7 @@ async function loadReportDetails() {
 
 
             photoUrl =
-                `http://localhost:5000/${cleanPath}`;
+                `${window.location.protocol}//${window.location.hostname}:5000/${cleanPath}`;
         }
 
 
@@ -88,7 +151,9 @@ async function loadReportDetails() {
 
             <div class="detail">
 
-                <span class="label">Title:</span>
+                <span class="label">
+                    Title:
+                </span>
 
                 ${report.Title || "N/A"}
 
@@ -97,7 +162,9 @@ async function loadReportDetails() {
 
             <div class="detail">
 
-                <span class="label">Description:</span>
+                <span class="label">
+                    Description:
+                </span>
 
                 ${report.Description || "N/A"}
 
@@ -106,7 +173,9 @@ async function loadReportDetails() {
 
             <div class="detail">
 
-                <span class="label">Category:</span>
+                <span class="label">
+                    Category:
+                </span>
 
                 ${report.Category || "N/A"}
 
@@ -115,7 +184,9 @@ async function loadReportDetails() {
 
             <div class="detail">
 
-                <span class="label">Severity:</span>
+                <span class="label">
+                    Severity:
+                </span>
 
                 ${report.Severity || "N/A"}
 
@@ -124,7 +195,9 @@ async function loadReportDetails() {
 
             <div class="detail">
 
-                <span class="label">Status:</span>
+                <span class="label">
+                    Status:
+                </span>
 
                 ${report.Status || "N/A"}
 
@@ -133,7 +206,9 @@ async function loadReportDetails() {
 
             <div class="detail">
 
-                <span class="label">Location:</span>
+                <span class="label">
+                    Location:
+                </span>
 
                 ${report.Location_Name || "N/A"}
 
@@ -142,13 +217,17 @@ async function loadReportDetails() {
 
             <div class="detail">
 
-                <span class="label">Created:</span>
+                <span class="label">
+                    Created:
+                </span>
 
-                ${report.Created_At
-                ? new Date(report.Created_At)
-                    .toLocaleString()
-                : "N/A"
-            }
+                ${
+                    report.Created_At
+                        ? new Date(
+                            report.Created_At
+                        ).toLocaleString()
+                        : "N/A"
+                }
 
             </div>
 
@@ -159,12 +238,16 @@ async function loadReportDetails() {
 
             <hr>
 
-            <h3>🤖 AI Disaster Analysis</h3>
+            <h3>
+                🤖 AI Disaster Analysis
+            </h3>
 
 
             <div class="detail">
 
-                <span class="label">AI Category:</span>
+                <span class="label">
+                    AI Category:
+                </span>
 
                 ${aiAnalysis.Category || "N/A"}
 
@@ -173,7 +256,9 @@ async function loadReportDetails() {
 
             <div class="detail">
 
-                <span class="label">AI Severity:</span>
+                <span class="label">
+                    AI Severity:
+                </span>
 
                 ${aiAnalysis.Severity || "N/A"}
 
@@ -182,7 +267,9 @@ async function loadReportDetails() {
 
             <div class="detail">
 
-                <span class="label">AI Priority:</span>
+                <span class="label">
+                    AI Priority:
+                </span>
 
                 ${aiAnalysis.Priority || "N/A"}
 
@@ -191,7 +278,9 @@ async function loadReportDetails() {
 
             <div class="detail">
 
-                <span class="label">Misinformation Score:</span>
+                <span class="label">
+                    Misinformation Score:
+                </span>
 
                 ${aiAnalysis.Misinformation_Score ?? "N/A"}
 
@@ -200,10 +289,15 @@ async function loadReportDetails() {
 
             <div class="detail">
 
-                <span class="label">AI Summary:</span>
+                <span class="label">
+                    AI Summary:
+                </span>
 
                 <p>
-                    ${aiAnalysis.Summary || "No AI summary available."}
+                    ${
+                        aiAnalysis.Summary ||
+                        "No AI summary available."
+                    }
                 </p>
 
             </div>
@@ -211,24 +305,16 @@ async function loadReportDetails() {
 
             <div class="detail">
 
-                <span class="label">AI Visual Findings:</span>
-
-                <p style="white-space: pre-line;">
-                    ${aiAnalysis.Visual_Findings || "No image evidence available."}
-                </p>
-
-            </div>
-
-
-            <div class="detail">
-
-                <span class="label">AI Recommendation:</span>
+                <span class="label">
+                    AI Visual Findings:
+                </span>
 
                 <p style="white-space: pre-line;">
 
-                   ${aiAnalysis.Recommendation ||
-            "No AI recommendation available."
-            }
+                    ${
+                        aiAnalysis.Visual_Findings ||
+                        "No image evidence available."
+                    }
 
                 </p>
 
@@ -237,72 +323,198 @@ async function loadReportDetails() {
 
             <div class="detail">
 
-                <span class="label">Analyzed At:</span>
+                <span class="label">
+                    AI Recommendation:
+                </span>
 
-                ${aiAnalysis.Analyzed_At
-                ? new Date(aiAnalysis.Analyzed_At)
-                    .toLocaleString()
-                : "N/A"
-            }
+                <p style="white-space: pre-line;">
+
+                    ${
+                        aiAnalysis.Recommendation ||
+                        "No AI recommendation available."
+                    }
+
+                </p>
+
+            </div>
+
+
+            <div class="detail">
+
+                <span class="label">
+                    Analyzed At:
+                </span>
+
+                ${
+                    aiAnalysis.Analyzed_At
+                        ? new Date(
+                            aiAnalysis.Analyzed_At
+                        ).toLocaleString()
+                        : "N/A"
+                }
 
             </div>
 
 
             <!-- =====================================
-     ASSIGNED RESOURCES
-====================================== -->
+                 ASSIGNED RESOURCES
+            ====================================== -->
 
-<hr>
+            <hr>
 
-<h3>🚒 Assigned Resources</h3>
+            <h3>
+                🚒 Assigned Resources
+            </h3>
 
-${report.Resources && report.Resources.length > 0
-                ? report.Resources.map(res => `
-        <div class="detail">
-            <span class="label">Resource Name:</span> ${res.Resource_Name} (${res.Resource_Type || "N/A"})
-        </div>
-        <div class="detail">
-            <span class="label">Resource Location:</span> ${res.Resource_Location || "N/A"}
-        </div>
-        <div class="detail">
-            <span class="label">Quantity Remaining:</span> ${res.Quantity}
-        </div>
-        <div class="detail">
-            <span class="label">Assignment Status:</span> ${res.Assignment_Status || "N/A"}
-        </div>
-        <br>
-    `).join("")
-                : `<p style="color:orange;">No resource assigned yet.</p>`
+
+            ${
+                report.Resources &&
+                report.Resources.length > 0
+
+                    ? report.Resources.map(
+                        res => `
+
+                        <div class="detail">
+
+                            <span class="label">
+                                Resource Name:
+                            </span>
+
+                            ${res.Resource_Name}
+                            (${res.Resource_Type || "N/A"})
+
+                        </div>
+
+
+                        <div class="detail">
+
+                            <span class="label">
+                                Resource Location:
+                            </span>
+
+                            ${res.Resource_Location || "N/A"}
+
+                        </div>
+
+
+                        <div class="detail">
+
+                            <span class="label">
+                                Quantity Remaining:
+                            </span>
+
+                            ${res.Quantity}
+
+                        </div>
+
+
+                        <div class="detail">
+
+                            <span class="label">
+                                Assignment Status:
+                            </span>
+
+                            ${res.Assignment_Status || "N/A"}
+
+                        </div>
+
+
+                        <br>
+
+                    `
+                    ).join("")
+
+                    : `
+                        <p style="color:orange;">
+                            No resource assigned yet.
+                        </p>
+                    `
             }
 
+
             <!-- =====================================
-     ASSIGNED VOLUNTEERS
-====================================== -->
+                 ASSIGNED VOLUNTEERS
+            ====================================== -->
 
-<hr>
+            <hr>
 
-<h3>👨‍🚒 Assigned Volunteers</h3>
+            <h3>
+                👨‍🚒 Assigned Volunteers
+            </h3>
 
-${report.Volunteers && report.Volunteers.length > 0
-                ? report.Volunteers.map(vol => `
-        <div class="detail">
-            <span class="label">Volunteer ID:</span> #${vol.Volunteer_id}
-        </div>
-        <div class="detail">
-            <span class="label">Skill:</span> ${vol.Skill || "N/A"}
-        </div>
-        <div class="detail">
-            <span class="label">Availability:</span> ${vol.Status || "N/A"}
-        </div>
-        <div class="detail">
-            <span class="label">Location:</span> ${vol.Location || "N/A"}
-        </div>
-        <div class="detail">
-            <span class="label">Assignment Status:</span> ${vol.Assignment_Status || "N/A"}
-        </div>
-        <br>
-    `).join("")
-                : `<p style="color:orange;">No volunteer assigned yet.</p>`
+
+            ${
+                report.Volunteers &&
+                report.Volunteers.length > 0
+
+                    ? report.Volunteers.map(
+                        vol => `
+
+                        <div class="detail">
+
+                            <span class="label">
+                                Volunteer ID:
+                            </span>
+
+                            #${vol.Volunteer_id}
+
+                        </div>
+
+
+                        <div class="detail">
+
+                            <span class="label">
+                                Skill:
+                            </span>
+
+                            ${vol.Skill || "N/A"}
+
+                        </div>
+
+
+                        <div class="detail">
+
+                            <span class="label">
+                                Availability:
+                            </span>
+
+                            ${vol.Status || "N/A"}
+
+                        </div>
+
+
+                        <div class="detail">
+
+                            <span class="label">
+                                Location:
+                            </span>
+
+                            ${vol.Location || "N/A"}
+
+                        </div>
+
+
+                        <div class="detail">
+
+                            <span class="label">
+                                Assignment Status:
+                            </span>
+
+                            ${vol.Assignment_Status || "N/A"}
+
+                        </div>
+
+
+                        <br>
+
+                    `
+                    ).join("")
+
+                    : `
+                        <p style="color:orange;">
+                            No volunteer assigned yet.
+                        </p>
+                    `
             }
 
 
@@ -312,41 +524,35 @@ ${report.Volunteers && report.Volunteers.length > 0
 
             <hr>
 
-            <h3>📷 Evidence Photo</h3>
+            <h3>
+                📷 Evidence Photo
+            </h3>
 
 
-            ${photoUrl
+            ${
+                photoUrl
 
-                ?
+                    ? `
 
-                `
+                        <img
+                            src="${photoUrl}"
+                            alt="Evidence"
+                            class="report-image"
+                            style="
+                                max-width:100%;
+                                border-radius:8px;
+                            "
+                        >
 
-                <img
+                    `
 
-                    src="${photoUrl}"
+                    : `
 
-                    alt="Evidence"
+                        <p>
+                            No photo available
+                        </p>
 
-                    class="report-image"
-
-                    style="
-                        max-width:100%;
-                        border-radius:8px;
-                    "
-
-                >
-
-                `
-
-                :
-
-                `
-
-                <p>
-                    No photo available
-                </p>
-
-                `
+                    `
             }
 
         `;
@@ -354,25 +560,43 @@ ${report.Volunteers && report.Volunteers.length > 0
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "Report Details Error:",
+            error
+        );
 
 
         container.innerHTML = `
 
             <p style="color:red;">
-
                 Failed to load report details.
-
             </p>
 
         `;
-
     }
-
 }
 
 
+// ==========================================
+// INITIAL LOAD
+// ==========================================
+
 document.addEventListener(
     "DOMContentLoaded",
-    loadReportDetails
+    async () => {
+
+        try {
+
+            await window.RescueAIAuthReady;
+
+            await loadReportDetails();
+
+        } catch (error) {
+
+            console.error(
+                "Authentication initialization failed:",
+                error
+            );
+        }
+    }
 );
