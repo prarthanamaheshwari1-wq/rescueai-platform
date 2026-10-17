@@ -11,32 +11,28 @@ const fs = require("fs");
 const { generateReportSafely } = require("../services/gemini");
 const { processDisasterImage } = require("../services/imageProcessor");
 const { analyzeImageAuthenticity } = require("../services/imageAuthenticity");
+
 // ==========================================
-// SAFE DELETE FILE
+// SAFE DELETE FILE (OneDrive & Windows EBUSY Safe)
 // ==========================================
 
 const safeDeleteFile = (filePath) => {
+    if (!filePath || !fs.existsSync(filePath)) return;
 
-    if (filePath && fs.existsSync(filePath)) {
-
+    // Use setImmediate to let the HTTP response finish first
+    setImmediate(async () => {
         try {
-
-            fs.unlinkSync(filePath);
-
+            await fs.promises.unlink(filePath);
+        } catch (err) {
+            // If Windows/OneDrive has the file locked (EBUSY/EPERM), 
+            // ignore it gracefully so it doesn't clutter your terminal. 
+            // Windows will release and clean it up automatically later.
+            if (err.code !== 'EBUSY' && err.code !== 'EPERM' && err.code !== 'EACCES') {
+                console.error(`Failed to clean up file at ${filePath}:`, err.message);
+            }
         }
-        catch (err) {
-
-            console.error(
-                `Failed to clean up file at ${filePath}:`,
-                err.message
-            );
-
-        }
-
-    }
-
+    });
 };
-
 
 // ==========================================
 // CREATE EMERGENCY REPORT
@@ -56,18 +52,10 @@ router.post(
                 title,
                 description,
                 category,
-                severity,
                 locationName,
                 latitude,
                 longitude
             } = req.body;
-
-
-            console.log(
-                "RECEIVED SEVERITY:",
-                JSON.stringify(severity)
-            );
-
 
             // ==========================================
             // INPUT VALIDATION
@@ -77,7 +65,6 @@ router.post(
                 !title ||
                 !description ||
                 !category ||
-                !severity ||
                 !locationName ||
                 !req.file
             ) {
@@ -89,39 +76,11 @@ router.post(
                 return res.status(400).json({
 
                     message:
-                        "Title, description, category, severity, location, and a mandatory photo are required."
+                        "Title, description, category, location, and a mandatory photo are required."
 
                 });
 
             }
-
-
-            // ==========================================
-            // VALIDATE SEVERITY
-            // ==========================================
-
-            const allowedSeverities = [
-                "Low",
-                "Medium",
-                "High",
-                "Critical"
-            ];
-
-            if (!allowedSeverities.includes(severity)) {
-
-                if (req.file) {
-                    safeDeleteFile(req.file.path);
-                }
-
-                return res.status(400).json({
-
-                    message:
-                        "Severity must be Low, Medium, High or Critical."
-
-                });
-
-            }
-
 
             // ==========================================
             // VALIDATE LATITUDE
@@ -293,14 +252,6 @@ router.post(
                 category.trim()
             );
 
-
-            request.input(
-                "Severity",
-                sql.NVarChar,
-                severity
-            );
-
-
             request.input(
                 "LocationName",
                 sql.NVarChar,
@@ -361,7 +312,7 @@ router.post(
                         @Title,
                         @Description,
                         @Category,
-                        @Severity,
+                        'Medium',
                         'Pending',
                         @LocationName,
                         @Latitude,
@@ -397,25 +348,23 @@ router.post(
             // ==========================================
 
             let aiCategory = category;
-            let aiSeverity = severity;
 
-            let aiPriority = "Low";
+            // Safe fallback values if Gemini fails or returns
+            // invalid severity or priority values.
+            let aiSeverity = null;
+            let aiPriority = null;
+            let classificationValid = false;
 
             let aiSummary = "";
-
             let aiVisualFindings = "";
-
             let aiRecommendation = "";
-
             let misinformationScore = 0;
-
 
             // ==========================================
             // MISINFORMATION DETECTION
             // ==========================================
 
             const suspiciousWords = [
-
                 "alien",
                 "ufo",
                 "zombie",
@@ -425,61 +374,19 @@ router.post(
                 "10000 people died",
                 "apocalypse",
                 "end of world"
-
             ];
-
 
             const reportText =
                 `${title} ${description}`.toLowerCase();
 
-
-            suspiciousWords.forEach(
-                word => {
-
-                    if (
-                        reportText.includes(word)
-                    ) {
-
-                        misinformationScore += 20;
-
-                    }
-
+            suspiciousWords.forEach(word => {
+                if (reportText.includes(word)) {
+                    misinformationScore += 20;
                 }
-            );
+            });
 
-
-            if (
-                misinformationScore > 100
-            ) {
-
+            if (misinformationScore > 100) {
                 misinformationScore = 100;
-
-            }
-
-
-            // ==========================================
-            // PRIORITY LOGIC
-            // ==========================================
-
-            if (severity === "Critical") {
-
-                aiPriority = "Critical";
-
-            }
-            else if (severity === "High") {
-
-                aiPriority = "High";
-
-            }
-            else if (severity === "Medium") {
-
-                aiPriority = "Moderate";
-
-            }
-            else {
-
-                aiPriority = "Low";
-
             }
 
 
@@ -488,170 +395,208 @@ router.post(
             // ==========================================
 
             const prompt = `
-
 You are RescueAI, an AI disaster-response assistant.
 
-Analyze this emergency incident using BOTH:
+Analyze the emergency using BOTH:
+1. The incident title and description.
+2. The uploaded disaster image and its visible evidence.
 
-1. The information provided by the user.
-2. The uploaded disaster image, if an image is available.
-
-Incident Information:
+INCIDENT INFORMATION:
 
 Title: ${title}
 Description: ${description}
 Category: ${category}
-Reported Severity: ${severity}
 Location: ${locationName}
+
+SEVERITY ASSESSMENT:
+
+Determine severity independently. Do not ask the user to select it.
+
+Use exactly one of these values:
+- Low: Minor incident, limited danger, little or no visible damage.
+- Medium: Significant incident requiring assistance, with a manageable level of danger.
+- High: Serious danger, substantial damage, or a major threat to people or infrastructure.
+- Critical: Immediate life-threatening danger, catastrophic damage, or an emergency requiring the most urgent response.
+
+PRIORITY ASSESSMENT:
+
+Determine response priority independently using the incident description and image.
+
+Use exactly one of these values:
+- Low: Routine response; no indication of immediate danger.
+- Moderate: Timely response is needed, but no clear evidence of immediate critical danger.
+- High: Urgent response is needed because of significant danger or potential harm.
+- Critical: Immediate emergency intervention may be needed to protect lives.
+
+Assess severity and priority separately. Consider the description, visible hazards, apparent damage, and uncertainty. Do not infer casualties or damage that cannot be supported by the evidence.
 
 IMAGE ANALYSIS REQUIREMENTS:
 
-- Carefully inspect the uploaded image when available.
-- Identify visible disaster conditions.
-- Identify visible damage, hazards, affected people, vehicles, buildings or infrastructure.
-- Identify visible rescue or emergency-response activity.
-- Do not assume that something is present if it cannot be reasonably observed.
-- Clearly distinguish visible observations from information provided by the user.
-- If the image does not provide enough information, say so.
+- Analyze the uploaded image carefully.
+- Identify visible hazards, damage, affected people, vehicles, buildings, and infrastructure when reasonably observable.
+- Distinguish image observations from information supplied in the description.
+- Do not invent casualties, damage, rescue activity, or hazards.
+- If the evidence is insufficient, state that limitation and make the most cautious reasonable assessment.
+- Never invent or change the reported location or category.
 
-RETURN EXACTLY IN THIS FORMAT:
+RETURN YOUR RESPONSE IN THIS EXACT FORMAT:
+
+SEVERITY: <Low, Medium, High, or Critical>
+PRIORITY: <Low, Moderate, High, or Critical>
 
 SUMMARY:
-<2-3 sentence summary combining the reported incident and visible image evidence>
+<2-3 sentences summarizing the incident and supporting evidence>
 
 VISUAL_FINDINGS:
-<short bullet-style list of important things visibly detected in the image>
+<Concise findings supported by the uploaded image, or No image evidence available.>
 
 RECOMMENDATION:
-<2-4 practical emergency response actions based on the incident and visible conditions>
+<2-4 practical emergency-response actions appropriate to the assessment>
 
-IMPORTANT FACTUAL RULES:
-
-- Treat the Title, Description, Category, Reported Severity, and Location as fixed facts.
-- Never change, replace, or invent the reported location.
-- Never change or replace the reported category or severity.
-- Never introduce a different city, location, category, or severity.
-- Do not invent people, damage, casualties, rescue activity, or hazards that are not supported by the report or image.
-- Image observations must be described only when reasonably visible.
-- Focus on immediate safety and disaster-response actions.
-- VISUAL_FINDINGS must contain only observations supported by the uploaded image.
-- If no image is available, write: No image evidence available.
-- Keep VISUAL_FINDINGS concise and practical.
-
+Return the SEVERITY and PRIORITY labels explicitly.
+Do not omit either label.
+Do not return multiple alternative values.
 `;
 
 
-            // ==========================================
-            // GEMINI AI ANALYSIS
-            // ==========================================
-
             try {
-
                 const {
                     text: aiText,
                     needsManualReview
-                } =
-                    await generateReportSafely(
-                        prompt,
-                        imageData
-                    );
+                } = await generateReportSafely(prompt, imageData);
 
+                const safeAiText =
+                    typeof aiText === "string" ? aiText : "";
 
-                if (
-                    needsManualReview
-                ) {
-
+                if (needsManualReview || !safeAiText.trim()) {
                     aiSummary =
-                        aiText ||
+                        safeAiText ||
                         "AI analysis unavailable. Incident requires manual review.";
-
 
                     aiVisualFindings =
                         "No reliable image analysis available.";
 
-
                     aiRecommendation =
                         "Verify the incident and follow standard emergency response procedures.";
+                } else {
+                    // Extract AI-determined severity.
+                    const severityMatch = safeAiText.match(
+                        /^\s*\**\s*SEVERITY\s*\**\s*:\s*\**\s*(Low|Medium|High|Critical)\b/im
+                    );
 
+                    // Extract AI-determined priority.
+                    const priorityMatch = safeAiText.match(
+                        /^\s*\**\s*PRIORITY\s*\**\s*:\s*\**\s*(Low|Moderate|High|Critical)\b/im
+                    );
+
+                    const severityMap = {
+                        low: "Low",
+                        medium: "Medium",
+                        high: "High",
+                        critical: "Critical"
+                    };
+
+                    const priorityMap = {
+                        low: "Low",
+                        moderate: "Moderate",
+                        high: "High",
+                        critical: "Critical"
+                    };
+
+                    const severityValue = severityMatch?.[1]?.toLowerCase();
+                    const priorityValue = priorityMatch?.[1]?.toLowerCase();
+
+                    if (
+                        severityValue &&
+                        priorityValue &&
+                        severityMap[severityValue] &&
+                        priorityMap[priorityValue]
+                    ) {
+                        aiSeverity = severityMap[severityValue];
+                        aiPriority = priorityMap[priorityValue];
+                        classificationValid = true;
+                    }
+
+                    // Extract summary.
+                    const summaryMatch = safeAiText.match(
+                        /(?:SUMMARY|\*\*SUMMARY\*\*)\s*:\s*([\s\S]*?)(?=(?:VISUAL_FINDINGS|\*\*VISUAL_FINDINGS\*\*)\s*:|(?:RECOMMENDATION|\*\*RECOMMENDATION\*\*)\s*:|$)/i
+                    );
+
+                    // Extract visual findings.
+                    const visualFindingsMatch = safeAiText.match(
+                        /(?:VISUAL_FINDINGS|\*\*VISUAL_FINDINGS\*\*)\s*:\s*([\s\S]*?)(?=(?:RECOMMENDATION|\*\*RECOMMENDATION\*\*)\s*:|$)/i
+                    );
+
+                    // Extract recommendation.
+                    const recommendationMatch = safeAiText.match(
+                        /(?:RECOMMENDATION|\*\*RECOMMENDATION\*\*)\s*:\s*([\s\S]*)/i
+                    );
+
+                    aiSummary = summaryMatch
+                        ? summaryMatch[1].trim()
+                        : "AI analysis generated successfully.";
+
+                    aiVisualFindings = visualFindingsMatch
+                        ? visualFindingsMatch[1].trim()
+                        : "No image evidence available.";
+
+                    aiRecommendation = recommendationMatch
+                        ? recommendationMatch[1].trim()
+                        : "Follow standard emergency response procedures.";
                 }
-                else {
-
-                    const safeAiText =
-                        typeof aiText === "string"
-                            ? aiText
-                            : "";
-
-
-                    // ==========================================
-                    // EXTRACT SUMMARY
-                    // ==========================================
-
-                    const summaryMatch =
-                        safeAiText.match(
-                            /SUMMARY:\s*([\s\S]*?)(?=\s*VISUAL_FINDINGS:|\s*RECOMMENDATION:|$)/i
-                        );
-
-
-                    // ==========================================
-                    // EXTRACT VISUAL FINDINGS
-                    // ==========================================
-
-                    const visualFindingsMatch =
-                        safeAiText.match(
-                            /VISUAL_FINDINGS:\s*([\s\S]*?)(?=\s*RECOMMENDATION:|$)/i
-                        );
-
-
-                    // ==========================================
-                    // EXTRACT RECOMMENDATION
-                    // ==========================================
-
-                    const recommendationMatch =
-                        safeAiText.match(
-                            /RECOMMENDATION:\s*([\s\S]*)/i
-                        );
-
-
-                    aiSummary =
-                        summaryMatch
-                            ? summaryMatch[1].trim()
-                            : "AI analysis generated successfully.";
-
-
-                    aiVisualFindings =
-                        visualFindingsMatch
-                            ? visualFindingsMatch[1].trim()
-                            : "No image evidence available.";
-
-
-                    aiRecommendation =
-                        recommendationMatch
-                            ? recommendationMatch[1].trim()
-                            : "Follow standard emergency response procedures.";
-
-                }
-
-            }
-            catch (aiError) {
-
+            } catch (aiError) {
                 console.error(
                     "Gemini AI Analysis Error:",
                     aiError.message
                 );
 
-
                 aiSummary =
                     "AI analysis unavailable. Incident requires manual review.";
-
 
                 aiVisualFindings =
                     "No reliable image analysis available.";
 
-
                 aiRecommendation =
                     "Verify the incident and follow standard emergency response procedures.";
-
             }
+
+            if (!classificationValid) {
+                aiSummary =
+                    "AI severity or priority could not be validated. Manual review is required.";
+            }
+
+            if (classificationValid) {
+                const severityUpdateRequest = new sql.Request();
+
+                severityUpdateRequest.input(
+                    "ReportId",
+                    sql.Int,
+                    reportId
+                );
+
+                severityUpdateRequest.input(
+                    "AISeverity",
+                    sql.NVarChar,
+                    aiSeverity
+                );
+
+                severityUpdateRequest.input(
+                    "AIPriority",
+                    sql.NVarChar,
+                    aiPriority
+                );
+
+                await severityUpdateRequest.query(`
+                    UPDATE Incident_Reports
+                    SET
+                    Severity = @AISeverity,
+                    Priority = @AIPriority
+                    WHERE Report_id = @ReportId
+                `);
+            }
+
+
+
 
 
             // ==========================================
@@ -1489,7 +1434,11 @@ router.get(
                         AI.AI_Summary,
                         AI.AI_Visual_Findings,
                         AI.AI_Recommendation,
-                        AI.Analyzed_At
+                        AI.Analyzed_At,
+                        AI.Image_Authenticity_Status,
+                        AI.Image_Authenticity_Prediction,
+                        AI.Image_Authenticity_Reason,
+                        AI.Image_Authenticity_Manual_Review
 
                     FROM Incident_Reports IR
 
@@ -1519,6 +1468,7 @@ router.get(
                 reportResult.recordset[0];
 
 
+
             // ==========================================
             // CHECK AI ANALYSIS
             // ==========================================
@@ -1529,6 +1479,8 @@ router.get(
                     firstRow.AI_Category ||
                     firstRow.AI_Severity
                 );
+
+
 
 
             // ==========================================
@@ -1574,36 +1526,27 @@ router.get(
                     firstRow.Photo_Path,
 
 
-                AI_Analysis:
-                    hasAIAnalysis
-                        ? {
+                AI_Analysis: hasAIAnalysis
+                    ? {
+                        Category: firstRow.AI_Category,
+                        Severity: firstRow.AI_Severity,
+                        Priority: firstRow.AI_Priority,
+                        Misinformation_Score: firstRow.Misinformation_Score,
+                        Summary: firstRow.AI_Summary,
+                        Visual_Findings: firstRow.AI_Visual_Findings,
+                        Recommendation: firstRow.AI_Recommendation,
+                        Analyzed_At: firstRow.Analyzed_At,
 
-                            Category:
-                                firstRow.AI_Category,
-
-                            Severity:
-                                firstRow.AI_Severity,
-
-                            Priority:
-                                firstRow.AI_Priority,
-
-                            Misinformation_Score:
-                                firstRow.Misinformation_Score,
-
-                            Summary:
-                                firstRow.AI_Summary,
-
-                            Visual_Findings:
-                                firstRow.AI_Visual_Findings,
-
-                            Recommendation:
-                                firstRow.AI_Recommendation,
-
-                            Analyzed_At:
-                                firstRow.Analyzed_At
-
+                        Image_Authenticity: {
+                            Status: firstRow.Image_Authenticity_Status,
+                            Prediction: firstRow.Image_Authenticity_Prediction,
+                            Message: firstRow.Image_Authenticity_Reason,
+                            Confidence: null,
+                            ManualReviewRequired:
+                                firstRow.Image_Authenticity_Manual_Review
                         }
-                        : null,
+                    }
+                    : null,
 
 
                 Resources: [],

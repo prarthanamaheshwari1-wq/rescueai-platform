@@ -1,7 +1,8 @@
 console.log("AI Analysis Dashboard Loaded");
 
-// Automatically matches whatever hostname the user uses (localhost or 127.0.0.1)
-const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+// Automatically matches localhost or 127.0.0.1
+const API_BASE =
+    `${window.location.protocol}//${window.location.hostname}:5000/api`;
 
 let categoryChartInstance = null;
 let priorityChartInstance = null;
@@ -12,16 +13,13 @@ let allAnalyses = [];
 // AUTHENTICATED FETCH
 // ==========================================
 
-// ==========================================
-// AUTHENTICATED FETCH
-// ==========================================
-
 async function authenticatedFetch(url, options = {}) {
-
-    // Helper function to fetch memory token or wait for auth-guard resolution
     let token = window.RescueAIAccessToken;
 
-    if (!token && typeof window.ensureAuthenticated === "function") {
+    if (
+        !token &&
+        typeof window.ensureAuthenticated === "function"
+    ) {
         try {
             token = await window.ensureAuthenticated();
         } catch (err) {
@@ -30,22 +28,27 @@ async function authenticatedFetch(url, options = {}) {
     }
 
     if (!token) {
-        console.error("Access token not available.");
         window.location.replace("authority-login.html");
         throw new Error("Authentication required.");
     }
 
     const headers = {
         ...(options.headers || {}),
-        "Authorization": `Bearer ${token}`
+        Authorization: `Bearer ${token}`
     };
 
-    return fetch(url, {
+    const response = await fetch(url, {
         ...options,
         headers,
         credentials: "include"
     });
 
+    if (response.status === 401) {
+        window.location.replace("authority-login.html");
+        throw new Error("Unauthorized");
+    }
+
+    return response;
 }
 
 
@@ -54,17 +57,26 @@ async function authenticatedFetch(url, options = {}) {
 // ==========================================
 
 async function loadAnalysis() {
-
     try {
-
         const response = await authenticatedFetch(
             `${API_BASE}/ai-analysis`
         );
 
-        const analyses = await response.json();
+        if (!response.ok) {
+            throw new Error(`API request failed: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // Support APIs returning either an array or an object
+        // containing an analyses array.
+        const analyses = Array.isArray(result)
+            ? result
+            : Array.isArray(result.analyses)
+                ? result.analyses
+                : [];
 
         allAnalyses = analyses;
-
 
         // ==============================
         // Category Statistics
@@ -73,15 +85,11 @@ async function loadAnalysis() {
         const categoryCounts = {};
 
         analyses.forEach(item => {
-
-            const category =
-                item.AI_Category || "Other";
+            const category = item.AI_Category || "Other";
 
             categoryCounts[category] =
                 (categoryCounts[category] || 0) + 1;
-
         });
-
 
         // ==============================
         // Priority Statistics
@@ -94,175 +102,187 @@ async function loadAnalysis() {
             Low: 0
         };
 
-
         analyses.forEach(item => {
-
-            const priority =
-                String(item.AI_Priority || "")
-                    .trim();
+            const priority = String(item.AI_Priority || "").trim();
 
             if (priorityCounts[priority] !== undefined) {
-
                 priorityCounts[priority]++;
-
             }
-
         });
-
 
         // ==============================
         // Dashboard Statistics
         // ==============================
 
-        const totalAnalysis =
-            analyses.length;
+        const totalAnalysis = analyses.length;
 
+        const criticalCases = analyses.filter(
+            item =>
+                String(item.AI_Priority || "")
+                    .trim()
+                    .toLowerCase() === "critical"
+        ).length;
 
-        const criticalCases =
-            analyses.filter(
-                item =>
-                    String(item.AI_Priority || "")
-                        .trim()
-                        .toLowerCase() === "critical"
-            ).length;
+        const misinformationCases = analyses.filter(
+            item => Number(item.Misinformation_Score) >= 50
+        ).length;
 
+        const totalElement = document.getElementById("totalAnalysis");
+        const criticalElement = document.getElementById("criticalCases");
+        const misinformationElement =
+            document.getElementById("misinformationCases");
 
-        const misinformationCases =
-            analyses.filter(
-                item =>
-                    Number(item.Misinformation_Score) >= 50
-            ).length;
+        if (totalElement) {
+            totalElement.textContent = totalAnalysis;
+        }
 
+        if (criticalElement) {
+            criticalElement.textContent = criticalCases;
+        }
 
-        document.getElementById(
-            "totalAnalysis"
-        ).textContent = totalAnalysis;
-
-
-        document.getElementById(
-            "criticalCases"
-        ).textContent = criticalCases;
-
-
-        document.getElementById(
-            "misinformationCases"
-        ).textContent = misinformationCases;
-
+        if (misinformationElement) {
+            misinformationElement.textContent = misinformationCases;
+        }
 
         // ==============================
         // Charts
         // ==============================
 
         createCategoryChart(categoryCounts);
-
         createPriorityChart(priorityCounts);
-
 
         // ==============================
         // Search
         // ==============================
 
-        const searchInput =
-            document.getElementById("searchInput");
+        const searchInput = document.getElementById("searchInput");
 
+        if (searchInput && !searchInput.dataset.listenerAttached) {
+            searchInput.dataset.listenerAttached = "true";
 
-        searchInput.addEventListener(
-            "input",
-            function () {
+            searchInput.addEventListener("input", function () {
+                const searchText = this.value.trim().toLowerCase();
 
-                const searchText =
-                    this.value.trim().toLowerCase();
+                const filteredAnalyses = allAnalyses.filter(item => {
+                    return (
+                        String(item.Report_id || "")
+                            .toLowerCase().includes(searchText) ||
 
+                        String(item.AI_Category || "")
+                            .toLowerCase().includes(searchText) ||
 
-                const filteredAnalyses =
-                    allAnalyses.filter(item => {
+                        String(item.AI_Priority || "")
+                            .toLowerCase().includes(searchText) ||
 
-                        return (
+                        String(item.AI_Severity || "")
+                            .toLowerCase().includes(searchText) ||
 
-                            String(item.Report_id || "")
-                                .toLowerCase()
-                                .includes(searchText)
+                        String(item.AI_Summary || "")
+                            .toLowerCase().includes(searchText) ||
 
-                            ||
+                        String(item.AI_Recommendation || "")
+                            .toLowerCase().includes(searchText) ||
 
-                            String(item.AI_Category || "")
-                                .toLowerCase()
-                                .includes(searchText)
-
-                            ||
-
-                            String(item.AI_Priority || "")
-                                .toLowerCase()
-                                .includes(searchText)
-
-                            ||
-
-                            String(item.AI_Severity || "")
-                                .toLowerCase()
-                                .includes(searchText)
-
-                            ||
-
-                            String(item.AI_Summary || "")
-                                .toLowerCase()
-                                .includes(searchText)
-
-                            ||
-
-                            String(item.AI_Recommendation || "")
-                                .toLowerCase()
-                                .includes(searchText)
-
-                            ||
-
-                            String(item.AI_Visual_Findings || "")
-                                .toLowerCase()
-                                .includes(searchText)
-
-                        );
-
-                    });
-
+                        String(item.AI_Visual_Findings || "")
+                            .toLowerCase().includes(searchText)
+                    );
+                });
 
                 renderAnalysisCards(filteredAnalyses);
-
-            }
-        );
-
+            });
+        }
 
         // Initial cards
         renderAnalysisCards(analyses);
 
-
     } catch (error) {
+        console.error("AI Analysis Load Error:", error);
 
-        console.error(
-            "AI Analysis Load Error:",
-            error
-        );
+        const container = document.getElementById("analysisContainer");
 
+        if (container) {
+            container.innerHTML = `
+                <p style="text-align:center; color:#b91c1c; padding:20px;">
+                    Failed to load AI analyses. Please refresh the page.
+                </p>
+            `;
+        }
     }
-
 }
 
 
 // ==========================================
-// Render Analysis Cards
+// GET IMAGE AUTHENTICITY INFORMATION
+// ==========================================
+
+function getImageAuthenticity(item) {
+    // Support nested and flattened API response structures.
+    const authenticity =
+        item.Image_Authenticity ||
+        item.AI_Analysis?.Image_Authenticity ||
+        item.AI_Analysis?.image_authenticity ||
+        item.image_authenticity ||
+        {};
+
+    const prediction =
+        authenticity.Prediction ||
+        authenticity.prediction ||
+        item.Image_Authenticity_Prediction ||
+        item.Image_Prediction ||
+        item.Prediction ||
+        item.prediction ||
+        "UNKNOWN";
+
+    const status =
+        authenticity.Status ||
+        authenticity.status ||
+        item.Image_Authenticity_Status ||
+        "unknown";
+
+    const message =
+        authenticity.Message ||
+        authenticity.message ||
+        item.Image_Authenticity_Reason ||
+        item.Image_Authenticity_Message ||
+        item.Message ||
+        item.message ||
+        "";
+
+    const reviewValue =
+        authenticity.ManualReviewRequired ??
+        authenticity.manualReviewRequired ??
+        item.Image_Authenticity_Manual_Review ??
+        item.Image_Authenticity_ManualReviewRequired ??
+        false;
+
+    const manualReviewRequired =
+        reviewValue === true ||
+        reviewValue === 1 ||
+        String(reviewValue).toLowerCase() === "true";
+
+    return {
+        prediction: String(prediction).trim().toUpperCase(),
+        status: String(status).trim().toLowerCase(),
+        message,
+        manualReviewRequired
+    };
+}
+
+
+// ==========================================
+// RENDER ANALYSIS CARDS
 // ==========================================
 
 function renderAnalysisCards(analyses) {
+    const container = document.getElementById("analysisContainer");
 
-    const container =
-        document.getElementById(
-            "analysisContainer"
-        );
-
+    if (!container) {
+        return;
+    }
 
     container.innerHTML = "";
 
-
-    if (analyses.length === 0) {
-
+    if (!analyses.length) {
         container.innerHTML = `
             <p style="
                 text-align:center;
@@ -275,246 +295,269 @@ function renderAnalysisCards(analyses) {
         `;
 
         return;
-
     }
 
+    const cardsHTML = analyses.map(item => {
+        const priority = item.AI_Priority || "Low";
 
-    const cardsHTML =
-        analyses.map(item => {
+        let priorityClass = "low";
+        let badgeClass = "badge-low";
 
-            const priority =
-                item.AI_Priority || "Low";
+        if (priority === "Critical") {
+            priorityClass = "critical";
+            badgeClass = "badge-critical";
+        } else if (priority === "High") {
+            priorityClass = "high";
+            badgeClass = "badge-high";
+        } else if (priority === "Moderate") {
+            priorityClass = "moderate";
+            badgeClass = "badge-moderate";
+        }
 
+        // ==============================
+        // IMAGE AUTHENTICITY BADGE
+        // ==============================
 
-            let priorityClass = "low";
-            let badgeClass = "badge-low";
+        const authenticity = getImageAuthenticity(item);
 
+        const prediction = authenticity.prediction;
+        const status = authenticity.status;
+        const message = authenticity.message;
+        const manualReviewRequired =
+            authenticity.manualReviewRequired;
 
-            if (priority === "Critical") {
+        let authBadgeStyle = "";
+        let authBadgeTitle = "";
 
-                priorityClass = "critical";
-                badgeClass = "badge-critical";
+        // Manual review takes precedence over a REAL prediction.
+        // REAL prediction ko sabse upar rakhein taaki purane records bhi green ho jayein
+        if (prediction === "REAL") {
+            authBadgeStyle =
+                "background-color:#d4edda;color:#155724;border:1px solid #c3e6cb;";
 
+            authBadgeTitle =
+                "✅ Image Authenticity Verified";
+
+        } else if (prediction === "FAKE") {
+            authBadgeStyle =
+                "background-color:#f8d7da;color:#721c24;border:1px solid #f5c6cb;";
+
+            authBadgeTitle =
+                "⚠️ Potential AI-Generated Image Detected";
+
+        } else if (manualReviewRequired) {
+            authBadgeStyle =
+                "background-color:#fff3cd;color:#856404;border:1px solid #ffeeba;";
+
+            authBadgeTitle =
+                "⚠️ Authenticity Inconclusive — Manual Review Required";
+
+        } else {
+            authBadgeStyle =
+                "background-color:#fff3cd;color:#856404;border:1px solid #ffeeba;";
+
+            authBadgeTitle =
+                "⚠️ Authenticity Inconclusive";
+        }
+
+        const authenticityBadge = `
+            <div style="
+                ${authBadgeStyle}
+                padding:10px 12px;
+                border-radius:6px;
+                margin:10px 0;
+                font-size:0.9em;
+            ">
+                <strong style="display:block;margin-bottom:5px;">
+                    ${authBadgeTitle}
+                </strong>
+
+                ${message
+                ? `<span style="font-size:0.85em;line-height:1.5;display:block;">
+                               ${message}
+                           </span>`
+                : ""
             }
 
-            else if (priority === "High") {
-
-                priorityClass = "high";
-                badgeClass = "badge-high";
-
+                ${prediction !== "UNKNOWN"
+                ? `<p style="margin:6px 0 0;">
+                               <strong>Prediction:</strong> ${prediction}
+                           </p>`
+                : ""
             }
 
-            else if (priority === "Moderate") {
-
-                priorityClass = "moderate";
-                badgeClass = "badge-moderate";
-
+                ${status !== "unknown"
+                ? `<p style="margin:4px 0 0;">
+                               <strong>Assessment status:</strong> ${status}
+                           </p>`
+                : ""
             }
 
+                <p style="margin:8px 0 0;font-size:0.85em;">
+                    This is a preliminary AI assessment, not proof of image authenticity.
+                </p>
+            </div>
+        `;
 
-            return `
-                <div class="analysis-card ${priorityClass}">
+        return `
+            <div class="analysis-card ${priorityClass}">
 
-                    <h2>
-                        Report #${item.Report_id}
-                    </h2>
+                <h2>
+                    Report #${item.Report_id}
+                </h2>
 
-                    <p>
-                        <strong>Category:</strong>
-                        ${item.AI_Category || "N/A"}
-                    </p>
+                ${authenticityBadge}
 
-                    <p>
-                        <strong>Severity:</strong>
-                        ${item.AI_Severity || "N/A"}
-                    </p>
+                <p>
+                    <strong>Category:</strong>
+                    ${item.AI_Category || "N/A"}
+                </p>
 
-                    <p>
-                        <strong>Priority:</strong>
-                        <span class="badge ${badgeClass}">
-                            ${priority}
-                        </span>
-                    </p>
+                <p>
+                    <strong>Severity:</strong>
+                    ${item.AI_Severity || "N/A"}
+                </p>
 
-                    <p>
-                        <strong>Misinformation Score:</strong>
-                        ${item.Misinformation_Score ?? 0}%
-                    </p>
+                <p>
+                    <strong>Priority:</strong>
+                    <span class="badge ${badgeClass}">
+                        ${priority}
+                    </span>
+                </p>
 
-                    <p>
-                        <strong>Summary:</strong>
-                        ${item.AI_Summary || "No summary provided."}
-                    </p>
+                <p>
+                    <strong>Misinformation Score:</strong>
+                    ${item.Misinformation_Score ?? 0}%
+                </p>
 
-                    <p>
-                        <strong>Visual Findings:</strong><br>
-                        ${item.AI_Visual_Findings || "No image evidence available."}
-                    </p>
+                <p>
+                    <strong>Summary:</strong>
+                    ${item.AI_Summary || "No summary provided."}
+                </p>
 
-                    <p>
-                        <strong>Recommendation:</strong>
-                        ${item.AI_Recommendation || "No recommendation available."}
-                    </p>
+                <p style="white-space:pre-line;">
+                    <strong>Visual Findings:</strong><br>
+                    ${item.AI_Visual_Findings || "No image evidence available."}
+                </p>
 
-                    <button
-                        onclick="viewReport(${item.Report_id})">
-                        View Report
-                    </button>
+                <p style="white-space:pre-line;">
+                    <strong>Recommendation:</strong>
+                    ${item.AI_Recommendation || "No recommendation available."}
+                </p>
 
-                </div>
-            `;
+                <button onclick="viewReport(${Number(item.Report_id)})">
+                    View Report
+                </button>
 
-        }).join("");
-
+            </div>
+        `;
+    }).join("");
 
     container.innerHTML = cardsHTML;
-
 }
 
 
 // ==========================================
-// Category Chart
+// CATEGORY CHART
 // ==========================================
 
 function createCategoryChart(categoryCounts) {
+    const ctx = document.getElementById("categoryChart");
 
-    const ctx =
-        document.getElementById(
-            "categoryChart"
-        );
-
-
-    if (categoryChartInstance) {
-
-        categoryChartInstance.destroy();
-
+    if (!ctx || typeof Chart === "undefined") {
+        return;
     }
 
+    if (categoryChartInstance) {
+        categoryChartInstance.destroy();
+    }
 
-    categoryChartInstance =
-        new Chart(ctx, {
+    categoryChartInstance = new Chart(ctx, {
+        type: "bar",
 
-            type: "bar",
+        data: {
+            labels: Object.keys(categoryCounts),
 
-            data: {
+            datasets: [{
+                label: "Incidents",
+                data: Object.values(categoryCounts)
+            }]
+        },
 
-                labels:
-                    Object.keys(categoryCounts),
+        options: {
+            responsive: true,
 
-                datasets: [{
-
-                    label: "Incidents",
-
-                    data:
-                        Object.values(categoryCounts)
-
-                }]
-
-            },
-
-            options: {
-
-                responsive: true,
-
-                plugins: {
-
-                    legend: {
-
-                        display: false
-
-                    }
-
+            plugins: {
+                legend: {
+                    display: false
                 }
-
             }
-
-        });
-
+        }
+    });
 }
 
 
 // ==========================================
-// Priority Pie Chart
+// PRIORITY PIE CHART
 // ==========================================
 
 function createPriorityChart(priorityCounts) {
+    const ctx = document.getElementById("priorityChart");
 
-    const ctx =
-        document.getElementById(
-            "priorityChart"
-        );
-
-
-    if (priorityChartInstance) {
-
-        priorityChartInstance.destroy();
-
+    if (!ctx || typeof Chart === "undefined") {
+        return;
     }
 
+    if (priorityChartInstance) {
+        priorityChartInstance.destroy();
+    }
 
-    priorityChartInstance =
-        new Chart(ctx, {
+    priorityChartInstance = new Chart(ctx, {
+        type: "pie",
 
-            type: "pie",
+        data: {
+            labels: [
+                "Critical",
+                "High",
+                "Moderate",
+                "Low"
+            ],
 
-            data: {
+            datasets: [{
+                data: [
+                    priorityCounts.Critical,
+                    priorityCounts.High,
+                    priorityCounts.Moderate,
+                    priorityCounts.Low
+                ]
+            }]
+        },
 
-                labels: [
-                    "Critical",
-                    "High",
-                    "Moderate",
-                    "Low"
-                ],
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
 
-                datasets: [{
-
-                    data: [
-                        priorityCounts.Critical,
-                        priorityCounts.High,
-                        priorityCounts.Moderate,
-                        priorityCounts.Low
-                    ]
-
-                }]
-
-            },
-
-            options: {
-
-                responsive: true,
-
-                maintainAspectRatio: false,
-
-                plugins: {
-
-                    legend: {
-
-                        position: "bottom"
-
-                    }
-
+            plugins: {
+                legend: {
+                    position: "bottom"
                 }
-
             }
-
-        });
-
+        }
+    });
 }
 
 
 // ==========================================
-// View Report
+// VIEW REPORT
 // ==========================================
 
 function viewReport(reportId) {
-
     window.location.href =
-        `report-details.html?id=${reportId}`;
-
+        `report-details.html?id=${encodeURIComponent(reportId)}`;
 }
 
 
- // ==========================================
+// ==========================================
 // LOAD DASHBOARD AFTER AUTHENTICATION
 // ==========================================
 

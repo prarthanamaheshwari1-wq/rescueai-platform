@@ -1,3 +1,4 @@
+const sharp = require('sharp');
 const fs = require("fs/promises");
 const path = require("path");
 const { generateReportSafely } = require("./gemini");
@@ -29,15 +30,12 @@ async function analyzeImageAuthenticity(imagePath) {
     }
 
     try {
-        const mimeType = getMimeType(imagePath);
+        // Sharp ki madad se kisi bhi format ki image ko standard JPEG buffer mein convert kar lein
+        const imageBuffer = await sharp(imagePath)
+            .jpeg({ quality: 90 }) // Kisi bhi format ko automatically JPEG bana dega
+            .toBuffer();
 
-        if (!mimeType) {
-            return inconclusiveResult(
-                "Unsupported image format. Manual review is required."
-            );
-        }
-
-        const imageBuffer = await fs.readFile(imagePath);
+        const mimeType = "image/jpeg"; // Ab sabhi images JPEG ban chuki hain
 
         if (imageBuffer.length === 0) {
             return inconclusiveResult(
@@ -76,12 +74,13 @@ LIMITATION: This is a preliminary AI assessment, not proof.
             );
         }
 
+        // Flexible matching to handle markdown stars (**VERDICT:**) or extra spaces
         const verdictMatch = result.text.match(
-            /^\s*VERDICT\s*:\s*(REAL|FAKE|UNCERTAIN)\s*$/im
+            /VERDICT\s*[:*_-]*\s*(REAL|FAKE|UNCERTAIN)/i
         );
 
         const reasonMatch = result.text.match(
-            /^\s*REASON\s*:\s*(.+)$/im
+            /REASON\s*[:*_-]*\s*([^\n]+)/i
         );
 
         if (!verdictMatch) {
@@ -92,18 +91,26 @@ LIMITATION: This is a preliminary AI assessment, not proof.
 
         const verdict = verdictMatch[1].toUpperCase();
         const reason = reasonMatch
-            ? reasonMatch[1].trim()
+            ? reasonMatch[1].trim().replace(/[*_]/g, "")
             : "No reliable explanation was returned.";
 
-        let status = "inconclusive";
-        let prediction = null;
+        let status = "no_strong_ai_indicators";
+        let prediction = "REAL";
+        let manualReviewRequired = false;
 
         if (verdict === "FAKE") {
             status = "possible_ai_generated";
             prediction = "FAKE";
-        } else if (verdict === "REAL") {
+            manualReviewRequired = true; // Sirf FAKE hone par hi manual review maangega
+        } else if (verdict === "UNCERTAIN") {
+            status = "inconclusive";
+            prediction = "UNCERTAIN";
+            manualReviewRequired = true; // Sirf UNCERTAIN hone par review maangega
+        } else {
+            // Jab verdict REAL hoga
             status = "no_strong_ai_indicators";
             prediction = "REAL";
+            manualReviewRequired = false; // REAL hone par manual review false rahega taaki webpage par clear status dikhe
         }
 
         return {
@@ -113,7 +120,7 @@ LIMITATION: This is a preliminary AI assessment, not proof.
                 "This preliminary assessment does not establish authenticity.",
             prediction,
             confidence: null,
-            manualReviewRequired: true
+            manualReviewRequired
         };
 
     } catch (error) {

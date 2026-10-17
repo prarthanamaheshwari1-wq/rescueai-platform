@@ -144,7 +144,6 @@ emergencyForm.addEventListener("submit", async function (event) {
     formData.append("title", document.getElementById("title").value);
     formData.append("description", document.getElementById("description").value);
     formData.append("category", document.getElementById("category").value);
-    formData.append("severity", document.getElementById("severity").value);
     formData.append("locationName", document.getElementById("locationName").value);
     formData.append("latitude", latitude);
     formData.append("longitude", longitude);

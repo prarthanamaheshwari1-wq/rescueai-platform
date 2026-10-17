@@ -221,13 +221,12 @@ async function loadReportDetails() {
                     Created:
                 </span>
 
-                ${
+                ${report.Created_At
+                ? new Date(
                     report.Created_At
-                        ? new Date(
-                            report.Created_At
-                        ).toLocaleString()
-                        : "N/A"
-                }
+                ).toLocaleString()
+                : "N/A"
+            }
 
             </div>
 
@@ -294,10 +293,9 @@ async function loadReportDetails() {
                 </span>
 
                 <p>
-                    ${
-                        aiAnalysis.Summary ||
-                        "No AI summary available."
-                    }
+                    ${aiAnalysis.Summary ||
+            "No AI summary available."
+            }
                 </p>
 
             </div>
@@ -311,10 +309,9 @@ async function loadReportDetails() {
 
                 <p style="white-space: pre-line;">
 
-                    ${
-                        aiAnalysis.Visual_Findings ||
-                        "No image evidence available."
-                    }
+                    ${aiAnalysis.Visual_Findings ||
+            "No image evidence available."
+            }
 
                 </p>
 
@@ -329,10 +326,9 @@ async function loadReportDetails() {
 
                 <p style="white-space: pre-line;">
 
-                    ${
-                        aiAnalysis.Recommendation ||
-                        "No AI recommendation available."
-                    }
+                    ${aiAnalysis.Recommendation ||
+            "No AI recommendation available."
+            }
 
                 </p>
 
@@ -345,13 +341,12 @@ async function loadReportDetails() {
                     Analyzed At:
                 </span>
 
-                ${
+                ${aiAnalysis.Analyzed_At
+                ? new Date(
                     aiAnalysis.Analyzed_At
-                        ? new Date(
-                            aiAnalysis.Analyzed_At
-                        ).toLocaleString()
-                        : "N/A"
-                }
+                ).toLocaleString()
+                : "N/A"
+            }
 
             </div>
 
@@ -367,12 +362,11 @@ async function loadReportDetails() {
             </h3>
 
 
-            ${
-                report.Resources &&
+            ${report.Resources &&
                 report.Resources.length > 0
 
-                    ? report.Resources.map(
-                        res => `
+                ? report.Resources.map(
+                    res => `
 
                         <div class="detail">
 
@@ -422,9 +416,9 @@ async function loadReportDetails() {
                         <br>
 
                     `
-                    ).join("")
+                ).join("")
 
-                    : `
+                : `
                         <p style="color:orange;">
                             No resource assigned yet.
                         </p>
@@ -443,12 +437,11 @@ async function loadReportDetails() {
             </h3>
 
 
-            ${
-                report.Volunteers &&
+            ${report.Volunteers &&
                 report.Volunteers.length > 0
 
-                    ? report.Volunteers.map(
-                        vol => `
+                ? report.Volunteers.map(
+                    vol => `
 
                         <div class="detail">
 
@@ -508,9 +501,9 @@ async function loadReportDetails() {
                         <br>
 
                     `
-                    ).join("")
+                ).join("")
 
-                    : `
+                : `
                         <p style="color:orange;">
                             No volunteer assigned yet.
                         </p>
@@ -518,42 +511,79 @@ async function loadReportDetails() {
             }
 
 
-            <!-- =====================================
-                 EVIDENCE PHOTO
-            ====================================== -->
+            
+<!-- =====================================
+     EVIDENCE PHOTO & AUTHENTICITY BADGE
+====================================== -->
 
-            <hr>
+<hr>
 
-            <h3>
-                📷 Evidence Photo
-            </h3>
+<h3>
+    📷 Evidence Photo & AI Authenticity
+</h3>
 
+${(() => {
+                const authenticity = aiAnalysis.Image_Authenticity || {};
 
-            ${
-                photoUrl
+                // Lowercase / TitleCase / String safety
+                const rawPrediction = authenticity.prediction || authenticity.Prediction || "UNKNOWN";
+                const prediction = String(rawPrediction).trim().toUpperCase();
 
-                    ? `
+                const status = authenticity.status || authenticity.Status || "unknown";
+                const message = authenticity.message || authenticity.Message || "No authenticity details available.";
 
-                        <img
-                            src="${photoUrl}"
-                            alt="Evidence"
-                            class="report-image"
-                            style="
-                                max-width:100%;
-                                border-radius:8px;
-                            "
-                        >
+                let badgeStyle = "";
+                let badgeTitle = "";
 
-                    `
+                if (prediction === "REAL") {
+                    badgeStyle =
+                        "background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;";
 
-                    : `
+                    badgeTitle =
+                        "✅ Image Authenticity Verified";
 
-                        <p>
-                            No photo available
-                        </p>
+                } else if (prediction === "FAKE") {
+                    badgeStyle =
+                        "background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;";
 
-                    `
-            }
+                    badgeTitle =
+                        "⚠️ Potential AI-Generated Image Detected";
+
+                } else {
+                    badgeStyle =
+                        "background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba;";
+
+                    badgeTitle =
+                        "⚠️ Authenticity Inconclusive — Manual Review Required";
+                }
+
+                return `
+        <div style="${badgeStyle} padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; font-family: sans-serif;">
+            <strong style="font-size: 1.05em; display: block; margin-bottom: 8px;">
+                ${badgeTitle}
+            </strong>
+
+            <span style="font-size: 0.9em; line-height: 1.5; display: block;">
+                ${message}
+            </span>
+
+            <p style="margin: 8px 0 0; font-size: 0.9em;">
+                <strong>Prediction:</strong>
+                ${prediction}
+            </p>
+
+            <p style="margin: 4px 0 0; font-size: 0.9em;">
+                <strong>Assessment status:</strong>
+                ${status}
+            </p>
+
+            <p style="margin: 8px 0 0; font-size: 0.85em;">
+                This is a preliminary AI assessment, not proof of image authenticity.
+            </p>
+        </div>
+    `;
+            })()}
+
 
         `;
 
