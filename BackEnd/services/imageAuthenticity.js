@@ -1,128 +1,139 @@
-const sharp = require('sharp');
-const fs = require("fs/promises");
-const path = require("path");
-const { generateReportSafely } = require("./gemini");
+const sharp = require("sharp");
 
-function getMimeType(imagePath) {
-    const extension = path.extname(imagePath).toLowerCase();
-
-    const mimeTypes = {
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".png": "image/png",
-        ".webp": "image/webp"
-    };
-
-    return mimeTypes[extension] || null;
-}
-
-async function analyzeImageAuthenticity(imagePath) {
+async function analyzeImageAuthenticity(
+    imagePath,
+    generateReport
+) {
+    if (typeof generateReport !== "function") {
+        const { generateReportSafely } = require("./gemini");
+        generateReport = generateReportSafely;
+    }
     const inconclusiveResult = (message) => ({
         status: "inconclusive",
         message,
-        prediction: null,
+        prediction: "UNCERTAIN",
         confidence: null,
         manualReviewRequired: true
     });
 
     if (!imagePath) {
-        return inconclusiveResult("No image was provided.");
+        return inconclusiveResult(
+            "No image was provided. Manual review is required."
+        );
     }
 
     try {
-        // Sharp ki madad se kisi bhi format ki image ko standard JPEG buffer mein convert kar lein
         const imageBuffer = await sharp(imagePath)
-            .jpeg({ quality: 90 }) // Kisi bhi format ko automatically JPEG bana dega
+            .jpeg({ quality: 90 })
             .toBuffer();
 
-        const mimeType = "image/jpeg"; // Ab sabhi images JPEG ban chuki hain
-
-        if (imageBuffer.length === 0) {
+        if (!imageBuffer.length) {
             return inconclusiveResult(
-                "The image file is empty. Manual review is required."
+                "The image is empty. Manual review is required."
             );
         }
 
         const prompt = `
-You are performing a preliminary image-authenticity screening
-for a disaster-response platform.
+You are screening an image submitted as disaster-response evidence.
 
-Examine the supplied image for visual signs that it may be
-AI-generated or manipulated.
+Assess whether the visible image contains strong signs of AI generation
+or image manipulation. This is preliminary visual screening, not forensic
+authentication.
 
-Important limitations:
-- Visual inspection cannot prove that an image is genuine.
-- Do not assume an image is AI-generated merely because it
-  looks unusual, compressed, blurry, or edited.
-- If the evidence is insufficient, choose UNCERTAIN.
-- Do not invent metadata, provenance, or forensic evidence.
+Consider:
+- Inconsistent geometry, perspective, reflections, or shadows.
+- Physically implausible objects or interactions.
+- Repeated, distorted, or incoherent fine details.
+- Inconsistent textures or structural details.
+- Visible editing inconsistencies.
+
+Rules:
+- Do not infer authenticity from realism alone.
+- Do not label an image FAKE merely because it looks unusual, blurry,
+  compressed, low quality, or unfamiliar.
+- Do not invent metadata or claim to have performed forensic analysis.
+- Choose FAKE only when there are specific, substantial visual indicators.
+- Choose REAL only when no strong visual indicators are apparent.
+- Choose UNCERTAIN when the evidence is ambiguous or insufficient.
+- Even a realistic image may be AI-generated; visual inspection cannot
+  establish provenance.
 
 Return exactly these three lines:
 VERDICT: REAL, FAKE, or UNCERTAIN
-REASON: A brief explanation based only on visible evidence.
-LIMITATION: This is a preliminary AI assessment, not proof.
+REASON: Brief explanation based only on visible evidence.
+LIMITATION: Preliminary visual screening only; authenticity is unverified.
 `;
 
-        const result = await generateReportSafely(prompt, {
-            mimeType,
+        const result = await generateReport(prompt, {
+            mimeType: "image/jpeg",
             data: imageBuffer.toString("base64")
         });
 
-        if (!result || result.needsManualReview || !result.text) {
+        if (
+            !result ||
+            result.needsManualReview ||
+            typeof result.text !== "string"
+        ) {
             return inconclusiveResult(
-                "The AI assessment was unavailable. Manual review is required."
+                "AI screening was unavailable. Manual review is required."
             );
         }
 
-        // Flexible matching to handle markdown stars (**VERDICT:**) or extra spaces
-        const verdictMatch = result.text.match(
-            /VERDICT\s*[:*_-]*\s*(REAL|FAKE|UNCERTAIN)/i
-        );
 
-        const reasonMatch = result.text.match(
-            /REASON\s*[:*_-]*\s*([^\n]+)/i
-        );
+        const text = result.text;
 
-        if (!verdictMatch) {
+        const verdictMatches = [
+            ...text.matchAll(
+                /^\s*VERDICT\s*:\s*(REAL|FAKE|UNCERTAIN)\s*$/gim
+            )
+        ];
+
+        if (verdictMatches.length !== 1) {
             return inconclusiveResult(
-                "The AI returned an unclear assessment. Manual review is required."
+                "The AI returned an unclear verdict. Manual review is required."
             );
         }
 
-        const verdict = verdictMatch[1].toUpperCase();
+        const verdict = verdictMatches[0][1].toUpperCase();
+
+        const reasonMatch = text.match(
+            /^\s*REASON\s*:\s*(.+?)\s*$/im
+        );
+
         const reason = reasonMatch
-            ? reasonMatch[1].trim().replace(/[*_]/g, "")
-            : "No reliable explanation was returned.";
+            ? reasonMatch[1].trim()
+            : "No explanation was provided.";
 
-        let status = "no_strong_ai_indicators";
-        let prediction = "REAL";
-        let manualReviewRequired = false;
 
         if (verdict === "FAKE") {
-            status = "possible_ai_generated";
-            prediction = "FAKE";
-            manualReviewRequired = true; // Sirf FAKE hone par hi manual review maangega
-        } else if (verdict === "UNCERTAIN") {
-            status = "inconclusive";
-            prediction = "UNCERTAIN";
-            manualReviewRequired = true; // Sirf UNCERTAIN hone par review maangega
-        } else {
-            // Jab verdict REAL hoga
-            status = "no_strong_ai_indicators";
-            prediction = "REAL";
-            manualReviewRequired = false; // REAL hone par manual review false rahega taaki webpage par clear status dikhe
+            return {
+                status: "possible_ai_generated",
+                message:
+                    `${reason} ` +
+                    "This is a preliminary assessment, not proof of manipulation.",
+                prediction: "FAKE",
+                confidence: null,
+                manualReviewRequired: true
+            };
+        }
+
+        if (verdict === "UNCERTAIN") {
+            return inconclusiveResult(
+                `${reason} Manual review is required.`
+            );
         }
 
         return {
-            status,
+            status: "no_strong_ai_indicators",
             message:
                 `${reason} ` +
-                "This preliminary assessment does not establish authenticity.",
-            prediction,
+                "No strong AI indicators were identified, but authenticity " +
+                "is not verified. Human review is required before treating " +
+                "this image as confirmed evidence.",
+            prediction: "REAL",
             confidence: null,
-            manualReviewRequired
+            manualReviewRequired: true
         };
-
     } catch (error) {
         console.error(
             "Image authenticity screening failed:",

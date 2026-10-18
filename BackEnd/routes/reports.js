@@ -45,6 +45,7 @@ router.post(
     async (req, res) => {
 
         let processedImagePath = null;
+        let reportSaved = false;
 
         try {
 
@@ -326,6 +327,10 @@ router.post(
 
             const reportId =
                 insertResult.recordset[0]?.Report_id;
+
+            if (reportId) {
+                reportSaved = true;
+            }
 
 
             if (!reportId) {
@@ -724,29 +729,19 @@ Do not return multiple alternative values.
             `);
 
 
+
             // ==========================================
             // CLEANUP TEMPORARY FILES
+            // Preserve the original photo as report evidence.
             // ==========================================
-
-            if (req.file) {
-
-                safeDeleteFile(
-                    req.file.path
-                );
-
-            }
-
 
             if (
                 processedImagePath &&
                 processedImagePath !== req.file?.path
             ) {
-
-                safeDeleteFile(
-                    processedImagePath
-                );
-
+                safeDeleteFile(processedImagePath);
             }
+
 
 
             // ==========================================
@@ -775,29 +770,24 @@ Do not return multiple alternative values.
             );
 
 
+
             // ==========================================
             // CLEANUP ON ERROR
             // ==========================================
 
-            if (req.file) {
-
-                safeDeleteFile(
-                    req.file.path
-                );
-
+            // Delete the original upload only if no report was saved.
+            if (!reportSaved && req.file) {
+                safeDeleteFile(req.file.path);
             }
 
-
+            // The processed image is temporary and can be deleted.
             if (
                 processedImagePath &&
                 processedImagePath !== req.file?.path
             ) {
-
-                safeDeleteFile(
-                    processedImagePath
-                );
-
+                safeDeleteFile(processedImagePath);
             }
+
 
 
             return res.status(500).json({

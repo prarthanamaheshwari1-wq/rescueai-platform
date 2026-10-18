@@ -522,6 +522,40 @@ async function loadReportDetails() {
     📷 Evidence Photo & AI Authenticity
 </h3>
 
+
+${photoUrl
+    ? `
+        <div style="margin: 16px 0 24px; text-align: center;">
+            <img
+                src="${photoUrl}"
+                alt="Evidence photo for report #${report.Report_id}"
+                style="
+                    display: block;
+                    width: 100%;
+                    max-width: 800px;
+                    max-height: 500px;
+                    object-fit: contain;
+                    margin: 0 auto;
+                    border-radius: 10px;
+                    border: 1px solid #ddd;
+                    background-color: #f5f5f5;
+                "
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+            >
+
+            <p style="display: none; color: #b42318; margin-top: 10px;">
+                The evidence photo could not be loaded. Please check the stored photo path and backend static-file configuration.
+            </p>
+        </div>
+    `
+    : `
+        <p style="color: #b42318;">
+            No evidence photo path is available for this report.
+        </p>
+    `
+}
+
+
 ${(() => {
                 const authenticity = aiAnalysis.Image_Authenticity || {};
 
@@ -537,10 +571,10 @@ ${(() => {
 
                 if (prediction === "REAL") {
                     badgeStyle =
-                        "background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;";
+                        "background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb;";
 
                     badgeTitle =
-                        "✅ Image Authenticity Verified";
+                        "ℹ️ No Strong AI Indicators Detected";
 
                 } else if (prediction === "FAKE") {
                     badgeStyle =
@@ -558,14 +592,14 @@ ${(() => {
                 }
 
                 return `
-        <div style="${badgeStyle} padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; font-family: sans-serif;">
-            <strong style="font-size: 1.05em; display: block; margin-bottom: 8px;">
+        <div style="${badgeStyle} padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; font-family: sans-serif; overflow-wrap: anywhere;">
+            <strong style="font-size: 1.05em; display: block; margin-bottom: 12px; line-height: 1.5;">
                 ${badgeTitle}
             </strong>
 
-            <span style="font-size: 0.9em; line-height: 1.5; display: block;">
+            <div style="font-size: 0.9em; line-height: 1.6; display: block; margin-top: 4px;">
                 ${message}
-            </span>
+            </div>
 
             <p style="margin: 8px 0 0; font-size: 0.9em;">
                 <strong>Prediction:</strong>
