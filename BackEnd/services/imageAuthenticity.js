@@ -81,6 +81,7 @@ LIMITATION: Preliminary visual screening only; authenticity is unverified.
 
 
         const text = result.text;
+        console.log("[Image Authenticity] Gemini response:", text);
 
         const verdictMatches = [
             ...text.matchAll(
