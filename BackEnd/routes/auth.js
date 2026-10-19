@@ -236,13 +236,15 @@ router.post("/login", async (req, res) => {
         } = req.body;
 
 
-        if (!email || !password) {
-
+        if (
+            typeof email !== "string" ||
+            typeof password !== "string" ||
+            !email.trim() ||
+            !password
+        ) {
             return res.status(400).json({
-                message:
-                    "Email and password are required"
+                message: "Email and password are required"
             });
-
         }
 
 
@@ -250,13 +252,14 @@ router.post("/login", async (req, res) => {
         // FIND USER
         // ==========================================
 
-        const request =
-            new sql.Request();
+        const normalizedEmail = email.trim();
+
+        const request = new sql.Request();
 
         request.input(
             "Email",
             sql.VarChar,
-            email
+            normalizedEmail
         );
 
 
@@ -286,7 +289,7 @@ router.post("/login", async (req, res) => {
             String(user.Role).trim().toLowerCase()
         )) {
             return res.status(403).json({
-                message: "Login is allowed only for Authority, Responder, and Volunteer accounts."
+                message: "Login is allowed only for Authority and Volunteer accounts."
             });
         }
 
@@ -500,7 +503,48 @@ router.post("/refresh", async (req, res) => {
 
         }
 
-        const session = JSON.parse(sessionData);
+        let session;
+
+        try {
+            session = JSON.parse(sessionData);
+        } catch {
+            await redisClient.del(refreshSessionKey);
+
+            const isProduction = process.env.NODE_ENV === "production";
+
+            res.clearCookie("refreshToken", {
+                httpOnly: true,
+                secure: isProduction,
+                sameSite: isProduction ? "none" : "lax",
+                path: "/"
+            });
+
+            return res.status(401).json({
+                message: "Invalid refresh-token session."
+            });
+        }
+
+        if (
+            !session ||
+            typeof session !== "object" ||
+            !Number.isSafeInteger(session.userId) ||
+            session.userId <= 0
+        ) {
+            await redisClient.del(refreshSessionKey);
+
+            const isProduction = process.env.NODE_ENV === "production";
+
+            res.clearCookie("refreshToken", {
+                httpOnly: true,
+                secure: isProduction,
+                sameSite: isProduction ? "none" : "lax",
+                path: "/"
+            });
+
+            return res.status(401).json({
+                message: "Invalid refresh-token session."
+            });
+        }
 
 
         // ==========================================
@@ -525,13 +569,19 @@ router.post("/refresh", async (req, res) => {
 
         if (userResult.recordset.length === 0) {
 
-            await redisClient.del(
-                refreshSessionKey
-            );
+            await redisClient.del(refreshSessionKey);
+
+            const isProduction = process.env.NODE_ENV === "production";
+
+            res.clearCookie("refreshToken", {
+                httpOnly: true,
+                secure: isProduction,
+                sameSite: isProduction ? "none" : "lax",
+                path: "/"
+            });
 
             return res.status(401).json({
-                message:
-                    "User no longer exists"
+                message: "User no longer exists"
             });
 
         }

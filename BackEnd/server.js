@@ -56,6 +56,33 @@ app.use(
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 
+
+// Protect cookie-based authentication routes against cross-site requests.
+app.use("/api/auth", (req, res, next) => {
+    const origin = req.get("Origin");
+    const isStateChangingRequest = [
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE"
+    ].includes(req.method);
+
+    if (!isStateChangingRequest) {
+        return next();
+    }
+
+    // Browser requests must have a trusted Origin.
+    if (!origin || !allowedOrigins.includes(origin)) {
+        return res.status(403).json({
+            message: "Untrusted or missing request origin."
+        });
+    }
+
+    next();
+});
+
+
+
 // 1. Ensure uploads directory exists inside BackEnd
 const uploadsPath = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsPath)) {

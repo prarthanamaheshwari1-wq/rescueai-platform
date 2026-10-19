@@ -144,4 +144,35 @@
         return window.RescueAIAccessToken;
     };
 
+    // ==========================================
+    // LOGOUT
+    // ==========================================
+
+    const logoutButton = document.getElementById("logoutButton");
+
+    if (logoutButton) {
+        logoutButton.addEventListener("click", async function () {
+            logoutButton.disabled = true;
+            logoutButton.textContent = "Logging out...";
+
+            try {
+                await fetch(`${API_BASE}/auth/logout`, {
+                    method: "POST",
+                    headers: window.RescueAIAccessToken
+                        ? {
+                            Authorization: `Bearer ${window.RescueAIAccessToken}`
+                        }
+                        : {},
+                    credentials: "include"
+                });
+            } catch (error) {
+                console.error("Logout request failed.");
+            } finally {
+                window.RescueAIAccessToken = null;
+                window.RescueAIUser = null;
+                window.location.replace("authority-login.html");
+            }
+        });
+    }
+
 })();

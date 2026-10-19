@@ -4,6 +4,24 @@ const reportId =
     params.get("id") ||
     params.get("reportId");
 
+const validReportId =
+    reportId && /^\d+$/.test(reportId) ? reportId : null;
+
+// Safely escape untrusted text before inserting it into HTML.
+function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, character => {
+        const entities = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        };
+
+        return entities[character];
+    });
+}
+
 // Automatically matches whatever hostname the user uses (localhost or 127.0.0.1)
 const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000/api`;
 
@@ -72,7 +90,7 @@ async function loadReportDetails() {
     const container =
         document.getElementById("reportDetails");
 
-    if (!reportId) {
+    if (!validReportId) {
 
         container.innerHTML =
             "<p style='color:red;'>No Report ID found.</p>";
@@ -85,7 +103,7 @@ async function loadReportDetails() {
 
         const response =
             await authenticatedFetch(
-                `${API_BASE}/reports/${reportId}`
+                `${API_BASE}/reports/${validReportId}`
             );
 
 
@@ -124,18 +142,27 @@ async function loadReportDetails() {
         // EVIDENCE PHOTO
         // =========================================
 
+
         let photoUrl = null;
 
+        if (typeof report.Photo_Path === "string" && report.Photo_Path.trim()) {
+            const cleanPath = report.Photo_Path
+                .replace(/\\/g, "/")
+                .replace(/^\/+/, "");
 
-        if (report.Photo_Path) {
-
-            const cleanPath =
-                report.Photo_Path.replace(/\\/g, "/");
-
-
-            photoUrl =
-                `${window.location.protocol}//${window.location.hostname}:5000/${cleanPath}`;
+            // Accept only paths inside the backend's uploads directory.
+            if (
+                cleanPath.startsWith("uploads/") &&
+                !cleanPath.split("/").some(part => part === "." || part === "..") &&
+                !/[<>"'`]/.test(cleanPath)
+            ) {
+                photoUrl = new URL(
+                    cleanPath,
+                    `${window.location.protocol}//${window.location.hostname}:5000/`
+                ).href;
+            }
         }
+
 
 
         // =========================================
@@ -145,7 +172,7 @@ async function loadReportDetails() {
         container.innerHTML = `
 
             <h2>
-                Report #${report.Report_id}
+                Report #${escapeHTML(report.Report_id)}
             </h2>
 
 
@@ -155,7 +182,7 @@ async function loadReportDetails() {
                     Title:
                 </span>
 
-                ${report.Title || "N/A"}
+                ${escapeHTML(report.Title || "N/A")}
 
             </div>
 
@@ -166,7 +193,7 @@ async function loadReportDetails() {
                     Description:
                 </span>
 
-                ${report.Description || "N/A"}
+                ${escapeHTML(report.Description || "N/A")}
 
             </div>
 
@@ -177,7 +204,7 @@ async function loadReportDetails() {
                     Category:
                 </span>
 
-                ${report.Category || "N/A"}
+                ${escapeHTML(report.Category || "N/A")}
 
             </div>
 
@@ -188,7 +215,7 @@ async function loadReportDetails() {
                     Severity:
                 </span>
 
-                ${report.Severity || "N/A"}
+                ${escapeHTML(report.Severity || "N/A")}
 
             </div>
 
@@ -199,7 +226,7 @@ async function loadReportDetails() {
                     Status:
                 </span>
 
-                ${report.Status || "N/A"}
+                ${escapeHTML(report.Status || "N/A")}
 
             </div>
 
@@ -210,7 +237,7 @@ async function loadReportDetails() {
                     Location:
                 </span>
 
-                ${report.Location_Name || "N/A"}
+                ${escapeHTML(report.Location_Name || "N/A")}
 
             </div>
 
@@ -221,12 +248,11 @@ async function loadReportDetails() {
                     Created:
                 </span>
 
-                ${report.Created_At
-                ? new Date(
-                    report.Created_At
-                ).toLocaleString()
+                ${escapeHTML(
+            report.Created_At
+                ? new Date(report.Created_At).toLocaleString()
                 : "N/A"
-            }
+        )}
 
             </div>
 
@@ -248,7 +274,7 @@ async function loadReportDetails() {
                     AI Category:
                 </span>
 
-                ${aiAnalysis.Category || "N/A"}
+                ${escapeHTML(aiAnalysis.Category || "N/A")}
 
             </div>
 
@@ -259,7 +285,7 @@ async function loadReportDetails() {
                     AI Severity:
                 </span>
 
-                ${aiAnalysis.Severity || "N/A"}
+                ${escapeHTML(aiAnalysis.Severity || "N/A")}
 
             </div>
 
@@ -270,7 +296,7 @@ async function loadReportDetails() {
                     AI Priority:
                 </span>
 
-                ${aiAnalysis.Priority || "N/A"}
+                ${escapeHTML(aiAnalysis.Priority || "N/A")}
 
             </div>
 
@@ -281,7 +307,7 @@ async function loadReportDetails() {
                     Misinformation Score:
                 </span>
 
-                ${aiAnalysis.Misinformation_Score ?? "N/A"}
+                ${escapeHTML(aiAnalysis.Misinformation_Score ?? "N/A")}
 
             </div>
 
@@ -293,9 +319,10 @@ async function loadReportDetails() {
                 </span>
 
                 <p>
-                    ${aiAnalysis.Summary ||
-            "No AI summary available."
-            }
+                    
+                    ${escapeHTML(
+            aiAnalysis.Summary || "No AI summary available."
+        )}
                 </p>
 
             </div>
@@ -309,9 +336,11 @@ async function loadReportDetails() {
 
                 <p style="white-space: pre-line;">
 
-                    ${aiAnalysis.Visual_Findings ||
-            "No image evidence available."
-            }
+                    
+                    ${escapeHTML(
+            aiAnalysis.Visual_Findings || "No image evidence available."
+        )}
+
 
                 </p>
 
@@ -326,9 +355,9 @@ async function loadReportDetails() {
 
                 <p style="white-space: pre-line;">
 
-                    ${aiAnalysis.Recommendation ||
-            "No AI recommendation available."
-            }
+                    ${escapeHTML(
+            aiAnalysis.Recommendation || "No AI recommendation available."
+        )}
 
                 </p>
 
@@ -341,12 +370,11 @@ async function loadReportDetails() {
                     Analyzed At:
                 </span>
 
-                ${aiAnalysis.Analyzed_At
-                ? new Date(
-                    aiAnalysis.Analyzed_At
-                ).toLocaleString()
+                ${escapeHTML(
+            aiAnalysis.Analyzed_At
+                ? new Date(aiAnalysis.Analyzed_At).toLocaleString()
                 : "N/A"
-            }
+        )}
 
             </div>
 
@@ -374,9 +402,8 @@ async function loadReportDetails() {
                                 Resource Name:
                             </span>
 
-                            ${res.Resource_Name}
-                            (${res.Resource_Type || "N/A"})
-
+                            ${escapeHTML(res.Resource_Name || "N/A")}
+                            (${escapeHTML(res.Resource_Type || "N/A")})
                         </div>
 
 
@@ -386,7 +413,7 @@ async function loadReportDetails() {
                                 Resource Location:
                             </span>
 
-                            ${res.Resource_Location || "N/A"}
+                            ${escapeHTML(res.Resource_Location || "N/A")}
 
                         </div>
 
@@ -397,7 +424,7 @@ async function loadReportDetails() {
                                 Quantity Remaining:
                             </span>
 
-                            ${res.Quantity}
+                            ${escapeHTML(res.Quantity ?? "N/A")}
 
                         </div>
 
@@ -408,7 +435,7 @@ async function loadReportDetails() {
                                 Assignment Status:
                             </span>
 
-                            ${res.Assignment_Status || "N/A"}
+                            ${escapeHTML(res.Assignment_Status || "N/A")}
 
                         </div>
 
@@ -449,7 +476,7 @@ async function loadReportDetails() {
                                 Volunteer ID:
                             </span>
 
-                            #${vol.Volunteer_id}
+                            #${escapeHTML(vol.Volunteer_id ?? "N/A")}
 
                         </div>
 
@@ -460,7 +487,7 @@ async function loadReportDetails() {
                                 Skill:
                             </span>
 
-                            ${vol.Skill || "N/A"}
+                            ${escapeHTML(vol.Skill || "N/A")}
 
                         </div>
 
@@ -471,7 +498,7 @@ async function loadReportDetails() {
                                 Availability:
                             </span>
 
-                            ${vol.Status || "N/A"}
+                            ${escapeHTML(vol.Status || "N/A")}
 
                         </div>
 
@@ -482,7 +509,7 @@ async function loadReportDetails() {
                                 Location:
                             </span>
 
-                            ${vol.Location || "N/A"}
+                            ${escapeHTML(vol.Location || "N/A")}
 
                         </div>
 
@@ -493,7 +520,7 @@ async function loadReportDetails() {
                                 Assignment Status:
                             </span>
 
-                            ${vol.Assignment_Status || "N/A"}
+                            ${escapeHTML(vol.Assignment_Status || "N/A")}
 
                         </div>
 
@@ -524,11 +551,11 @@ async function loadReportDetails() {
 
 
 ${photoUrl
-    ? `
+                ? `
         <div style="margin: 16px 0 24px; text-align: center;">
             <img
                 src="${photoUrl}"
-                alt="Evidence photo for report #${report.Report_id}"
+                alt="Evidence photo for report #${escapeHTML(report.Report_id)}"
                 style="
                     display: block;
                     width: 100%;
@@ -548,12 +575,12 @@ ${photoUrl
             </p>
         </div>
     `
-    : `
+                : `
         <p style="color: #b42318;">
             No evidence photo path is available for this report.
         </p>
     `
-}
+            }
 
 
 ${(() => {
@@ -598,17 +625,17 @@ ${(() => {
             </strong>
 
             <div style="font-size: 0.9em; line-height: 1.6; display: block; margin-top: 4px;">
-                ${message}
+                ${escapeHTML(message)}
             </div>
 
             <p style="margin: 8px 0 0; font-size: 0.9em;">
                 <strong>Prediction:</strong>
-                ${prediction}
+                ${escapeHTML(prediction)}
             </p>
 
             <p style="margin: 4px 0 0; font-size: 0.9em;">
                 <strong>Assessment status:</strong>
-                ${status}
+                ${escapeHTML(status)}
             </p>
 
             <p style="margin: 8px 0 0; font-size: 0.85em;">

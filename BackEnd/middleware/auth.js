@@ -40,9 +40,24 @@ async function authenticateToken(req, res, next) {
             });
         }
 
-        const session = JSON.parse(sessionData);
+        let session;
 
-        if (!session.userId) {
+        try {
+            session = JSON.parse(sessionData);
+        } catch {
+            await redisClient.del(sessionKey);
+
+            return res.status(401).json({
+                message: "Invalid access-token session."
+            });
+        }
+
+        if (
+            !session ||
+            typeof session !== "object" ||
+            !Number.isSafeInteger(session.userId) ||
+            session.userId <= 0
+        ) {
             await redisClient.del(sessionKey);
 
             return res.status(401).json({
