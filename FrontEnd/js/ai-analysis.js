@@ -151,7 +151,7 @@ async function loadAnalysis() {
         createCategoryChart(categoryCounts);
         createPriorityChart(priorityCounts);
 
-        // ==============================
+                // ==============================
         // Search
         // ==============================
 
@@ -163,28 +163,37 @@ async function loadAnalysis() {
             searchInput.addEventListener("input", function () {
                 const searchText = this.value.trim().toLowerCase();
 
+                // Empty search: show everything
+                if (searchText === "") {
+                    renderAnalysisCards(allAnalyses);
+                    return;
+                }
+
                 const filteredAnalyses = allAnalyses.filter(item => {
-                    return (
-                        String(item.Report_id || "")
-                            .toLowerCase().includes(searchText) ||
+                    const reportId = String(
+                        item.Report_id ??
+                        item.Report_ID ??
+                        item.report_id ??
+                        item.id ??
+                        ""
+                    ).toLowerCase();
 
-                        String(item.AI_Category || "")
-                            .toLowerCase().includes(searchText) ||
+                    // Digits only: search the Report ID (works for 1, 2, 3+ digits)
+                    if (/^\d+$/.test(searchText)) {
+                        return reportId === searchText;
+                    }
 
-                        String(item.AI_Priority || "")
-                            .toLowerCase().includes(searchText) ||
-
-                        String(item.AI_Severity || "")
-                            .toLowerCase().includes(searchText) ||
-
-                        String(item.AI_Summary || "")
-                            .toLowerCase().includes(searchText) ||
-
-                        String(item.AI_Recommendation || "")
-                            .toLowerCase().includes(searchText) ||
-
-                        String(item.AI_Visual_Findings || "")
-                            .toLowerCase().includes(searchText)
+                    // Text: search all text fields
+                    return [
+                        reportId,
+                        item.AI_Category,
+                        item.AI_Priority,
+                        item.AI_Severity,
+                        item.AI_Summary,
+                        item.AI_Recommendation,
+                        item.AI_Visual_Findings
+                    ].some(field =>
+                        String(field || "").toLowerCase().includes(searchText)
                     );
                 });
 
@@ -329,14 +338,13 @@ function renderAnalysisCards(analyses) {
         let authBadgeStyle = "";
         let authBadgeTitle = "";
 
-        // Manual review takes precedence over a REAL prediction.
-        // REAL prediction ko sabse upar rakhein taaki purane records bhi green ho jayein
+
         if (prediction === "REAL") {
             authBadgeStyle =
                 "background-color:#d4edda;color:#155724;border:1px solid #c3e6cb;";
 
             authBadgeTitle =
-                "✅ Image Authenticity Verified";
+                "✅ No Strong AI-Generation Indicators Detected";
 
         } else if (prediction === "FAKE") {
             authBadgeStyle =
@@ -359,6 +367,7 @@ function renderAnalysisCards(analyses) {
             authBadgeTitle =
                 "⚠️ Authenticity Inconclusive";
         }
+
 
         const authenticityBadge = `
             <div style="

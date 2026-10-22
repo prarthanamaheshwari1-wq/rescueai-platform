@@ -50,18 +50,19 @@ document.addEventListener("DOMContentLoaded", () => {
             );
 
 
-            const reportId =
-                reportIdInput.value.trim();
 
+            const reportId = reportIdInput.value.trim();
 
             if (!reportId) {
-
-                alert(
-                    "Please enter a Report ID"
-                );
-
+                alert("Please enter a Report ID.");
                 return;
             }
+
+            if (!/^[1-9]\d*$/.test(reportId)) {
+                alert("Please enter a valid positive Report ID.");
+                return;
+            }
+
 
 
             reportResult.innerHTML =
@@ -119,52 +120,39 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
 
+
                 // ==========================================
                 // TIMELINE STATUS LOGIC
                 // ==========================================
 
-                const currentStatus =
+                const currentStatus = (
                     data.Report_Status ||
                     data.Status ||
-                    "";
+                    ""
+                ).trim();
 
-
-                let submittedClass =
-                    "pending";
-
-                let verifiedClass =
-                    "pending";
-
-                let resolvedClass =
-                    "pending";
-
+                let submittedClass = "pending";
+                let verifiedClass = "pending";
+                let resolvedClass = "pending";
 
                 if (currentStatus === "Submitted") {
-
-                    submittedClass =
-                        "completed";
-
+                    submittedClass = "completed";
                 }
                 else if (currentStatus === "Verified") {
-
-                    submittedClass =
-                        "completed";
-
-                    verifiedClass =
-                        "completed";
-
+                    submittedClass = "completed";
+                    verifiedClass = "completed";
                 }
                 else if (currentStatus === "Resolved") {
-
-                    submittedClass =
-                        "completed";
-
-                    verifiedClass =
-                        "completed";
-
-                    resolvedClass =
-                        "completed";
+                    submittedClass = "completed";
+                    verifiedClass = "completed";
+                    resolvedClass = "completed";
                 }
+
+                const rejectedMessage =
+                    currentStatus === "Rejected"
+                        ? '<p class="rejected-status">❌ This report has been rejected.</p>'
+                        : "";
+
 
 
                 // ==========================================
@@ -303,6 +291,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     </div>
 
+                    ${rejectedMessage}
+
 
                     <p>
 
@@ -321,21 +311,19 @@ document.addEventListener("DOMContentLoaded", () => {
                             Created:
                         </strong>
 
-                        ${
+                        ${data.Created_At
+                        ? new Date(
                             data.Created_At
-                                ? new Date(
-                                    data.Created_At
-                                ).toLocaleString()
-                                : "N/A"
-                        }
+                        ).toLocaleString()
+                        : "N/A"
+                    }
 
                     </p>
 
 
-                    ${
-                        photoUrl
+                    ${photoUrl
 
-                            ? `
+                        ? `
 
                             <div
                                 style="margin-top:15px;"
@@ -355,7 +343,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                             `
 
-                            : `
+                        : `
 
                             <p
                                 style="
