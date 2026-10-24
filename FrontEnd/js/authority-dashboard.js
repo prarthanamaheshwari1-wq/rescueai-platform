@@ -198,14 +198,13 @@ async function loadReports() {
                         <select
                             id="status-${report.Report_id}"
                             ${status === "Resolved" ||
-                                status === "Rejected"
-                                ? "disabled"
-                                : ""}
+                    status === "Rejected"
+                    ? "disabled"
+                    : ""}
                         >
 
-                            ${
-                                status === "Submitted"
-                                    ? `
+                            ${status === "Submitted"
+                    ? `
                                         <option
                                             value="Submitted"
                                             selected
@@ -221,12 +220,11 @@ async function loadReports() {
                                             Rejected
                                         </option>
                                     `
-                                    : ""
-                            }
+                    : ""
+                }
 
-                            ${
-                                status === "Verified"
-                                    ? `
+                            ${status === "Verified"
+                    ? `
                                         <option
                                             value="Verified"
                                             selected
@@ -238,12 +236,11 @@ async function loadReports() {
                                             Resolved
                                         </option>
                                     `
-                                    : ""
-                            }
+                    : ""
+                }
 
-                            ${
-                                status === "Resolved"
-                                    ? `
+                            ${status === "Resolved"
+                    ? `
                                         <option
                                             value="Resolved"
                                             selected
@@ -251,12 +248,11 @@ async function loadReports() {
                                             Resolved
                                         </option>
                                     `
-                                    : ""
-                            }
+                    : ""
+                }
 
-                            ${
-                                status === "Rejected"
-                                    ? `
+                            ${status === "Rejected"
+                    ? `
                                         <option
                                             value="Rejected"
                                             selected
@@ -264,8 +260,8 @@ async function loadReports() {
                                             Rejected
                                         </option>
                                     `
-                                    : ""
-                            }
+                    : ""
+                }
 
                         </select>
 
@@ -274,72 +270,69 @@ async function loadReports() {
 
                     <td>
 
-                        ${
-                            status === "Resolved" ||
-                            status === "Rejected"
+                        ${status === "Resolved" ||
+                    status === "Rejected"
 
-                                ? `
+                    ? `
                                     <button disabled>
                                         Closed
                                     </button>
                                 `
 
-                                : `
+                    : `
                                     <button
                                         onclick="updateStatus(${report.Report_id})"
                                     >
                                         Update
                                     </button>
                                 `
-                        }
+                }
 
                     </td>
 
 
                     <td>
 
-                        ${
-                            status === "Resolved" ||
-                            status === "Rejected"
+                        ${status === "Resolved" ||
+                    status === "Rejected"
 
-                                ? `
+                    ? `
                                     <button disabled>
                                         Closed
                                     </button>
                                 `
 
-                                : `
+                    : `
                                     <button
                                         onclick="assignResource(${report.Report_id})"
                                     >
                                         🚒 Resource
                                     </button>
                                 `
-                        }
+                }
 
                     </td>
 
 
                     <td>
 
-                        ${
-                            status === "Resolved" ||
-                            status === "Rejected"
+                        ${status === "Resolved" ||
+                    status === "Rejected"
 
-                                ? `
+                    ? `
                                     <button disabled>
                                         Closed
                                     </button>
                                 `
 
-                                : `
+                    : `
                                     <button
                                         onclick="assignVolunteer(${report.Report_id})"
                                     >
                                         👨‍🚒 Volunteer
                                     </button>
                                 `
-                        }
+                }
 
                     </td>
 
@@ -741,11 +734,12 @@ async function assignResource(reportId) {
         }
 
 
-        const selectedResourceId =
-            parseInt(
-                resourceId,
-                10
-            );
+        const selectedResourceId = Number(resourceId.trim());
+
+        if (!Number.isSafeInteger(selectedResourceId) || selectedResourceId <= 0) {
+            alert("Please enter a valid positive Resource ID.");
+            return;
+        }
 
 
         if (
@@ -775,10 +769,22 @@ async function assignResource(reportId) {
 
 
         if (!selectedResource) {
-
-            alert(
-                "Invalid Resource ID. Please select an ID from the available list."
+            const resourceExists = resources.find(
+                resource =>
+                    Number(resource.Resource_id) === selectedResourceId
             );
+
+            if (!resourceExists) {
+                alert("Resource ID not found. Please check the ID and try again.");
+            } else if (Number(resourceExists.Quantity || 0) <= 0) {
+                alert("This resource has zero available units and cannot be assigned.");
+            } else if (
+                String(resourceExists.Status || "").trim().toLowerCase() !== "available"
+            ) {
+                alert("This resource is currently deployed and cannot be assigned.");
+            } else {
+                alert("Resource selection failed. Refresh the page and try again.");
+            }
 
             return;
         }
@@ -918,7 +924,7 @@ async function assignVolunteer(reportId) {
 
                         const status =
                             availability ===
-                            "available"
+                                "available"
 
                                 ? "Available"
 

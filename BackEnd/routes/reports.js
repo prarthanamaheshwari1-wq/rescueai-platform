@@ -56,7 +56,7 @@ router.post(
                 locationName,
                 latitude,
                 longitude
-            } = req.body;
+            } = req.body || {};
 
             // ==========================================
             // INPUT VALIDATION
@@ -1891,6 +1891,84 @@ router.put(
             }
 
 
+
+
+            // ==========================================
+            // RESTORE RESOURCE QUANTITY WHEN REPORT CLOSES
+            // ==========================================
+
+            if (
+                status === "Resolved" ||
+                status === "Rejected"
+            ) {
+                const resourceTransaction = new sql.Transaction();
+
+                try {
+                    await resourceTransaction.begin(
+                        sql.ISOLATION_LEVEL.SERIALIZABLE
+                    );
+
+                    const restoreRequest =
+                        new sql.Request(resourceTransaction);
+
+                    restoreRequest.input(
+                        "ReportId",
+                        sql.Int,
+                        reportId
+                    );
+
+                    await restoreRequest.query(`
+                        UPDATE R
+                        SET
+                            R.Quantity = R.Quantity + A.ReturnQuantity,
+                            R.Status = 'Available'
+                        FROM Resources R
+                        INNER JOIN (
+                            SELECT
+                                Resource_id,
+                                COUNT(*) AS ReturnQuantity
+                            FROM Resource_Assignments
+                                WITH (UPDLOCK, HOLDLOCK)
+                            WHERE Report_id = @ReportId
+                              AND LOWER(LTRIM(RTRIM(Status))) = 'active'
+                            GROUP BY Resource_id
+                        ) A
+                            ON R.Resource_id = A.Resource_id;
+                    `);
+
+                    const completeRequest =
+                        new sql.Request(resourceTransaction);
+
+                    completeRequest.input(
+                        "ReportId",
+                        sql.Int,
+                        reportId
+                    );
+
+                    await completeRequest.query(`
+                        UPDATE Resource_Assignments
+                        SET Status = 'Completed'
+                        WHERE Report_id = @ReportId
+                          AND LOWER(LTRIM(RTRIM(Status))) = 'active';
+                    `);
+
+                    await resourceTransaction.commit();
+                } catch (resourceError) {
+                    try {
+                        await resourceTransaction.rollback();
+                    } catch (rollbackError) {
+                        console.error(
+                            "Resource rollback failed:",
+                            rollbackError.message
+                        );
+                    }
+
+                    throw resourceError;
+                }
+            }
+
+
+
             // ==========================================
             // RELEASE VOLUNTEER WHEN RESOLVED
             // ==========================================
@@ -2043,342 +2121,179 @@ router.put(
 // TOKEN SECURITY WILL BE ADDED LATER
 // ==========================================
 
+
 router.post(
     "/:reportId/assign-resource",
     authenticateToken,
     authorizeRoles("authority"),
     async (req, res) => {
+        const reportId = Number(req.params.reportId);
+        const resourceId = Number(req.body?.resourceId);
+
+        if (
+            !Number.isSafeInteger(reportId) ||
+            reportId <= 0 ||
+            !Number.isSafeInteger(resourceId) ||
+            resourceId <= 0
+        ) {
+            return res.status(400).json({
+                message: "Valid report ID and resource ID are required."
+            });
+        }
+
+        const transaction = new sql.Transaction();
 
         try {
-
-            const reportId =
-                Number(req.params.reportId);
-
-
-            const resourceId =
-                Number(req.body.resourceId);
-
-
-            // ==========================================
-            // VALIDATE IDs
-            // ==========================================
-
-            if (
-                !Number.isInteger(reportId) ||
-                reportId <= 0
-            ) {
-
-                return res.status(400).json({
-
-                    message:
-                        "Invalid report ID."
-
-                });
-
-            }
-
-
-            if (
-                !Number.isInteger(resourceId) ||
-                resourceId <= 0
-            ) {
-
-                return res.status(400).json({
-
-                    message:
-                        "Invalid resource ID."
-
-                });
-
-            }
-
-
-            // ==========================================
-            // CHECK REPORT
-            // ==========================================
-
-            const reportCheckRequest =
-                new sql.Request();
-
-
-            reportCheckRequest.input(
-                "ReportId",
-                sql.Int,
-                reportId
-            );
-
-
-            const reportResult =
-                await reportCheckRequest.query(`
-
-                    SELECT
-                        Report_id
-
-                    FROM Incident_Reports
-
-                    WHERE Report_id =
-                          @ReportId
-
-                `);
-
-
-            if (
-                reportResult.recordset.length === 0
-            ) {
-
-                return res.status(404).json({
-
-                    message:
-                        "Report not found."
-
-                });
-
-            }
-
-
-            // ==========================================
-            // CHECK RESOURCE
-            // ==========================================
-
-            const resourceCheckRequest =
-                new sql.Request();
-
-
-            resourceCheckRequest.input(
-                "ResourceId",
-                sql.Int,
-                resourceId
-            );
-
-
-            const resourceResult =
-                await resourceCheckRequest.query(`
-
-                    SELECT
-
-                        Resource_id,
-                        Resource_Name,
-                        Resource_Type,
-                        Quantity,
-                        Status
-
-                    FROM Resources
-
-                    WHERE Resource_id =
-                          @ResourceId
-
-                `);
-
-
-            if (
-                resourceResult.recordset.length === 0
-            ) {
-
-                return res.status(404).json({
-
-                    message:
-                        "Resource not found."
-
-                });
-
-            }
-
-
-            const resource =
-                resourceResult.recordset[0];
-
-
-            // ==========================================
-            // CHECK RESOURCE STATUS
-            // ==========================================
-
-            if (
-                resource.Status &&
-                resource.Status.toLowerCase() !== "available"
-            ) {
-
-                return res.status(400).json({
-
-                    message:
-                        "This resource is currently unavailable."
-
-                });
-
-            }
-
-
-            // ==========================================
-            // CHECK QUANTITY
-            // ==========================================
-
-            if (
-                Number(resource.Quantity) <= 0
-            ) {
-
-                return res.status(400).json({
-
-                    message:
-                        "This resource is currently unavailable because its quantity is 0."
-
-                });
-
-            }
-
-
-            // ==========================================
-            // CHECK DUPLICATE ACTIVE ASSIGNMENT
-            // ==========================================
-
-            const existingRequest =
-                new sql.Request();
-
-
-            existingRequest.input(
-                "ReportId",
-                sql.Int,
-                reportId
-            );
-
-
-            existingRequest.input(
-                "ResourceId",
-                sql.Int,
-                resourceId
-            );
-
-
-            const existingAssignment =
-                await existingRequest.query(`
-
-                    SELECT
-                        Assignment_id
-
-                    FROM Resource_Assignments
-
-                    WHERE Report_id =
-                          @ReportId
-
-                    AND Resource_id =
-                        @ResourceId
-
-                    AND Status =
-                        'Active'
-
-                `);
-
-
-            if (
-                existingAssignment.recordset.length > 0
-            ) {
-
-                return res.status(400).json({
-
-                    message:
-                        "This resource is already assigned to this report."
-
-                });
-
-            }
-
-
-            // ==========================================
-            // INSERT ASSIGNMENT
-            // ==========================================
-
-            const request =
-                new sql.Request();
-
-
-            request.input(
-                "ReportId",
-                sql.Int,
-                reportId
-            );
-
-
-            request.input(
-                "ResourceId",
-                sql.Int,
-                resourceId
-            );
-
-
-            await request.query(`
-
-                INSERT INTO Resource_Assignments
-                (
-                    Report_id,
-                    Resource_id,
-                    Status
-                )
-
-                VALUES
-                (
-                    @ReportId,
-                    @ResourceId,
-                    'Active'
-                )
-
+            await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+
+            // 1. Verify the report exists and lock its row.
+            const reportRequest = new sql.Request(transaction);
+            reportRequest.input("ReportId", sql.Int, reportId);
+
+            const reportResult = await reportRequest.query(`
+                SELECT Report_id
+                FROM Incident_Reports WITH (UPDLOCK, HOLDLOCK)
+                WHERE Report_id = @ReportId
             `);
 
+            if (reportResult.recordset.length === 0) {
+                await transaction.rollback();
 
-            // ==========================================
-            // DECREASE RESOURCE QUANTITY
-            // ==========================================
+                return res.status(404).json({
+                    message: "Report not found."
+                });
+            }
 
-            const quantityRequest =
-                new sql.Request();
+            // 2. Verify the resource exists and lock its row.
+            const resourceRequest = new sql.Request(transaction);
+            resourceRequest.input("ResourceId", sql.Int, resourceId);
 
+            const resourceResult = await resourceRequest.query(`
+                SELECT Resource_id, Resource_Name, Quantity, Status
+                FROM Resources WITH (UPDLOCK, HOLDLOCK)
+                WHERE Resource_id = @ResourceId
+            `);
 
-            quantityRequest.input(
-                "ResourceId",
-                sql.Int,
-                resourceId
-            );
+            if (resourceResult.recordset.length === 0) {
+                await transaction.rollback();
 
+                return res.status(404).json({
+                    message: "Resource not found."
+                });
+            }
 
-            await quantityRequest.query(`
+            const resource = resourceResult.recordset[0];
+            const quantity = Number(resource.Quantity);
+            const status = String(resource.Status || "")
+                .trim()
+                .toLowerCase();
 
+            if (!Number.isFinite(quantity) || quantity <= 0) {
+                await transaction.rollback();
+
+                return res.status(400).json({
+                    message: "This resource has zero available units and cannot be assigned."
+                });
+            }
+
+            if (status !== "available") {
+                await transaction.rollback();
+
+                return res.status(400).json({
+                    message: "This resource is not available for assignment."
+                });
+            }
+
+            // 3. Prevent duplicate active assignments for the same report/resource.
+            const duplicateRequest = new sql.Request(transaction);
+            duplicateRequest.input("ReportId", sql.Int, reportId);
+            duplicateRequest.input("ResourceId", sql.Int, resourceId);
+
+            const duplicateResult = await duplicateRequest.query(`
+                SELECT TOP 1 Assignment_id
+                FROM Resource_Assignments WITH (UPDLOCK, HOLDLOCK)
+                WHERE Report_id = @ReportId
+                  AND Resource_id = @ResourceId
+                  AND LOWER(LTRIM(RTRIM(Status))) = 'active'
+            `);
+
+            if (duplicateResult.recordset.length > 0) {
+                await transaction.rollback();
+
+                return res.status(409).json({
+                    message: "This resource is already actively assigned to this report."
+                });
+            }
+
+            // 4. Decrement inventory and update status atomically.
+            const updateRequest = new sql.Request(transaction);
+            updateRequest.input("ResourceId", sql.Int, resourceId);
+
+            const updateResult = await updateRequest.query(`
                 UPDATE Resources
-
-                SET Quantity =
-                    Quantity - 1
-
-                WHERE Resource_id =
-                      @ResourceId
-
-                AND Quantity > 0
-
+                SET
+                    Quantity = Quantity - 1,
+                    Status = CASE
+                        WHEN Quantity - 1 <= 0 THEN 'Deployed'
+                        ELSE 'Available'
+                    END
+                OUTPUT
+                    INSERTED.Quantity AS RemainingQuantity,
+                    INSERTED.Status AS ResourceStatus
+                WHERE Resource_id = @ResourceId
+                  AND Quantity > 0
+                  AND LOWER(LTRIM(RTRIM(Status))) = 'available'
             `);
 
+            if (updateResult.recordset.length === 0) {
+                await transaction.rollback();
 
-            return res.json({
+                return res.status(409).json({
+                    message: "The resource is no longer available. Refresh and try again."
+                });
+            }
 
-                message:
-                    "Resource assigned successfully"
+            // 5. Record the assignment within the same transaction.
+            const assignmentRequest = new sql.Request(transaction);
+            assignmentRequest.input("ReportId", sql.Int, reportId);
+            assignmentRequest.input("ResourceId", sql.Int, resourceId);
 
+            await assignmentRequest.query(`
+                INSERT INTO Resource_Assignments
+                    (Report_id, Resource_id, Status)
+                VALUES
+                    (@ReportId, @ResourceId, 'Active')
+            `);
+
+            await transaction.commit();
+
+            const updatedResource = updateResult.recordset[0];
+
+            return res.status(200).json({
+                message: "Resource assigned successfully.",
+                reportId,
+                resourceId,
+                remainingQuantity: updatedResource.RemainingQuantity,
+                resourceStatus: updatedResource.ResourceStatus
             });
+        } catch (error) {
+            try {
+                if (transaction._aborted !== true) {
+                    await transaction.rollback();
+                }
+            } catch (rollbackError) {
+                console.error("Resource assignment rollback failed:", rollbackError.message);
+            }
 
-        }
-        catch (error) {
-
-            console.error(
-                "Assign Resource Error:",
-                error
-            );
-
+            console.error("Resource assignment failed:", error);
 
             return res.status(500).json({
-
-                message:
-                    "Server Error"
-
+                message: "Failed to assign resource. No partial assignment should be retained."
             });
-
         }
-
     }
 );
+
 
 
 // ==========================================
@@ -2452,31 +2367,30 @@ router.post(
             );
 
 
-            const reportResult =
-                await reportRequest.query(`
+            const reportResult = await reportRequest.query(`
+                SELECT Report_id, Status
+                FROM Incident_Reports WITH (UPDLOCK, HOLDLOCK)
+                WHERE Report_id = @ReportId
+            `);
 
-                    SELECT
-                        Report_id
-
-                    FROM Incident_Reports
-
-                    WHERE Report_id =
-                          @ReportId
-
-                `);
-
-
-            if (
-                reportResult.recordset.length === 0
-            ) {
+            if (reportResult.recordset.length === 0) {
+                await transaction.rollback();
 
                 return res.status(404).json({
-
-                    message:
-                        "Report not found."
-
+                    message: "Report not found."
                 });
+            }
 
+            const reportStatus = String(reportResult.recordset[0].Status || "")
+                .trim()
+                .toLowerCase();
+
+            if (reportStatus === "rejected" || reportStatus === "resolved") {
+                await transaction.rollback();
+
+                return res.status(409).json({
+                    message: "Resources cannot be assigned to a rejected or resolved report."
+                });
             }
 
 

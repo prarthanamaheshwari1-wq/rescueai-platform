@@ -11,12 +11,29 @@ router.get("/", async (req, res) => {
         const request = new sql.Request();
 
         const result = await request.query(`
-            SELECT *
-            FROM Disaster_Events
-            ORDER BY Disaster_id DESC
-        `);
+    SELECT
+        *,
+        CASE
+            WHEN End_Date IS NOT NULL
+                 AND End_Date < GETDATE()
+                 AND LOWER(LTRIM(RTRIM(Status))) = 'active'
+            THEN 'Completed'
+            ELSE Status
+        END AS Current_Status
+    FROM Disaster_Events
+    ORDER BY Disaster_id DESC
+`);
 
-        res.status(200).json(result.recordset);
+        const disasterEvents = result.recordset.map((event) => {
+            const { Current_Status, ...rest } = event;
+
+            return {
+                ...rest,
+                Status: Current_Status
+            };
+        });
+
+        res.status(200).json(disasterEvents);
 
     } catch (error) {
 

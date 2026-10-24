@@ -90,11 +90,12 @@ router.get("/", async (req, res) => {
 
                 await disasterQuery.query(`
                     IF NOT EXISTS (
-                        SELECT 1 
-                        FROM Disaster_Events 
-                        WHERE Disaster_Type = @DisasterType 
-                        AND LOWER(Status) = 'active'
-                    )
+    SELECT 1
+    FROM Disaster_Events
+    WHERE Disaster_Type = @DisasterType
+      AND LOWER(LTRIM(RTRIM(Status))) = 'active'
+      AND (End_Date IS NULL OR End_Date >= GETDATE())
+)
                     BEGIN
                         INSERT INTO Disaster_Events
                         (

@@ -1,8 +1,8 @@
-/* ==========================================
+ /* ==========================================
    AegisAI - Global Styles
 ========================================== */
 
-* {
+/* * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -15,14 +15,14 @@ body {
     color: #172033;
     display: flex;
     flex-direction: column;
-}
+} */
 
 
 /* ==========================================
    Header
 ========================================== */
 
-.header {
+/* .header {
     width: 100%;
     padding: 25px 7%;
     background: #ffffff;
@@ -39,26 +39,26 @@ body {
     margin-top: 5px;
     color: #687386;
     font-size: 14px;
-}
+} */
 
 
 /* ==========================================
    Main Container
 ========================================== */
 
-.main-container {
+/* .main-container {
     width: 100%;
     max-width: 1200px;
     margin: auto;
     padding: 70px 25px;
-}
+} */
 
 
 /* ==========================================
    Hero Section
 ========================================== */
 
-.hero-section {
+/* .hero-section {
     text-align: center;
     max-width: 750px;
     margin: 0 auto 55px;
@@ -74,14 +74,14 @@ body {
     color: #687386;
     font-size: 17px;
     line-height: 1.7;
-}
+} */
 
 
 /* ==========================================
    Access Cards
 ========================================== */
 
-.access-section {
+/* .access-section {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 30px;
@@ -127,14 +127,14 @@ body {
     line-height: 1.7;
     min-height: 105px;
     margin-bottom: 25px;
-}
+} */
 
 
 /* ==========================================
    Buttons
 ========================================== */
 
-.access-card button {
+/* .access-card button {
     width: 100%;
     padding: 14px 20px;
     border: none;
@@ -158,14 +158,14 @@ body {
 .authority-card button {
     background: #172033;
     color: #ffffff;
-}
+} */
 
 
 /* ==========================================
    Security Notice
 ========================================== */
 
-.security-notice {
+/* .security-notice {
     max-width: 900px;
     margin: 40px auto 0;
     padding: 20px 25px;
@@ -190,14 +190,14 @@ body {
     color: #687386;
     font-size: 14px;
     line-height: 1.5;
-}
+} */
 
 
 /* ==========================================
    Footer
 ========================================== */
 
-.footer {
+/* .footer {
     margin-top: auto;
     padding: 20px;
     text-align: center;
@@ -208,14 +208,14 @@ body {
 .footer p {
     color: #7a8495;
     font-size: 13px;
-}
+} */
 
 
 /* ==========================================
    Responsive Design
 ========================================== */
 
-@media (max-width: 768px) {
+/* @media (max-width: 768px) {
 
     .main-container {
         padding: 50px 20px;
@@ -235,5 +235,452 @@ body {
 
     .access-card {
         padding: 30px;
+    }
+}  */
+
+
+
+
+
+
+
+
+
+
+/* updated css */
+
+/* =========================================
+   RescueAI - Permission / Access Selection
+   Space theme matching authority-login.html
+========================================= */
+
+:root {
+    --bg: #01030a;
+    --text: #eef3ff;
+    --muted: #9fb0d4;
+    --accent: #4daaff;
+    --accent-2: #6c4dff;
+    --danger: #ff7a7a;
+    --card: rgba(6, 14, 38, 0.78);
+    --border: rgba(110, 175, 255, 0.28);
+    --shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+}
+
+html {
+    min-height: 100%;
+    color-scheme: dark;
+}
+
+body {
+    position: relative;
+    isolation: isolate;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--text);
+}
+
+/* Space background */
+.universe {
+    position: fixed;
+    inset: 0;
+    z-index: -3;
+    pointer-events: none;
+    background:
+        url("../assets/space-background.png") 40% center / cover no-repeat,
+        #01030a;
+}
+
+.universe::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, rgba(1, 3, 10, 0.34), rgba(1, 3, 10, 0.78)),
+        linear-gradient(0deg, rgba(1, 3, 10, 0.72), transparent 65%);
+}
+
+.starfield {
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.stars {
+    position: absolute;
+    inset: 0;
+    animation: twinkle 5s ease-in-out infinite alternate;
+}
+
+.stars-1 {
+    background-image:
+        radial-gradient(1.2px 1.2px at 12% 18%, #fff, transparent),
+        radial-gradient(1px 1px at 27% 72%, #fff, transparent),
+        radial-gradient(1.4px 1.4px at 41% 9%, #cfe4ff, transparent),
+        radial-gradient(1px 1px at 58% 38%, #fff, transparent),
+        radial-gradient(1.3px 1.3px at 73% 14%, #fff, transparent),
+        radial-gradient(1px 1px at 88% 61%, #cfe4ff, transparent),
+        radial-gradient(1.2px 1.2px at 94% 90%, #fff, transparent),
+        radial-gradient(1px 1px at 6% 86%, #fff, transparent),
+        radial-gradient(1.4px 1.4px at 65% 82%, #fff, transparent),
+        radial-gradient(1px 1px at 35% 48%, #fff, transparent);
+}
+
+.stars-2 {
+    animation-duration: 7s;
+    animation-delay: 1s;
+    background-image:
+        radial-gradient(1px 1px at 8% 44%, #fff, transparent),
+        radial-gradient(1.5px 1.5px at 19% 92%, #bcd8ff, transparent),
+        radial-gradient(1px 1px at 33% 25%, #fff, transparent),
+        radial-gradient(1.2px 1.2px at 52% 66%, #fff, transparent),
+        radial-gradient(1px 1px at 69% 52%, #bcd8ff, transparent),
+        radial-gradient(1.4px 1.4px at 82% 28%, #fff, transparent),
+        radial-gradient(1px 1px at 97% 8%, #fff, transparent),
+        radial-gradient(1.2px 1.2px at 46% 94%, #fff, transparent);
+}
+
+.stars-3 {
+    animation-duration: 9s;
+    animation-delay: 2s;
+    background-image:
+        radial-gradient(1px 1px at 3% 6%, #fff, transparent),
+        radial-gradient(1.2px 1.2px at 15% 55%, #fff, transparent),
+        radial-gradient(1px 1px at 47% 20%, #cfe4ff, transparent),
+        radial-gradient(1.3px 1.3px at 61% 7%, #fff, transparent),
+        radial-gradient(1px 1px at 76% 74%, #fff, transparent),
+        radial-gradient(1.2px 1.2px at 91% 40%, #fff, transparent),
+        radial-gradient(1px 1px at 24% 36%, #fff, transparent);
+}
+
+@keyframes twinkle {
+    from { opacity: 0.35; }
+    to { opacity: 0.95; }
+}
+
+.space-light {
+    position: fixed;
+    z-index: -1;
+    width: min(340px, 60vw);
+    aspect-ratio: 1;
+    left: 3%;
+    top: 12%;
+    border-radius: 50%;
+    pointer-events: none;
+    background: radial-gradient(circle,
+        rgba(110, 190, 255, 0.28) 0%,
+        rgba(60, 120, 255, 0.10) 42%,
+        transparent 72%);
+    filter: blur(14px);
+    animation: lightPulse 7s ease-in-out infinite;
+}
+
+@keyframes lightPulse {
+    0%, 100% { transform: scale(0.94); opacity: 0.65; }
+    50% { transform: scale(1.06); opacity: 1; }
+}
+
+/* Header */
+.header {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    padding: 25px clamp(20px, 5vw, 72px);
+    border-bottom: 1px solid rgba(110, 175, 255, 0.16);
+    background: rgba(1, 5, 18, 0.62);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+.logo {
+    width: min(1180px, 100%);
+    margin: 0 auto;
+}
+
+.logo h1 {
+    color: #f4f8ff;
+    font-size: clamp(1.65rem, 3vw, 2.15rem);
+    font-weight: 750;
+    letter-spacing: 0.2px;
+    text-shadow: 0 0 22px rgba(77, 170, 255, 0.22);
+}
+
+.logo p {
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 0.94rem;
+    letter-spacing: 0.35px;
+}
+
+/* Main content */
+.main-container {
+    position: relative;
+    z-index: 1;
+    width: min(1100px, calc(100% - 40px));
+    margin: 0 auto;
+    padding: clamp(38px, 7vh, 76px) 0 48px;
+    flex: 1;
+}
+
+.hero-section {
+    max-width: 790px;
+    margin: 0 auto 42px;
+    text-align: center;
+}
+
+.hero-section h2 {
+    color: #f4f8ff;
+    font-size: clamp(1.9rem, 4.3vw, 3.15rem);
+    line-height: 1.16;
+    letter-spacing: -0.7px;
+    text-wrap: balance;
+    text-shadow: 0 0 30px rgba(77, 170, 255, 0.18);
+}
+
+.hero-description {
+    max-width: 700px;
+    margin: 18px auto 0;
+    color: var(--muted);
+    font-size: clamp(0.98rem, 1.7vw, 1.08rem);
+    line-height: 1.8;
+}
+
+/* Access cards */
+.access-section {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    align-items: stretch;
+}
+
+.access-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+    padding: clamp(24px, 3.2vw, 36px);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: linear-gradient(145deg, rgba(10, 24, 58, 0.88), var(--card));
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.access-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 12%;
+    width: 76%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(123, 195, 255, 0.75), transparent);
+}
+
+.access-card:hover {
+    transform: translateY(-5px);
+    border-color: rgba(110, 190, 255, 0.55);
+    box-shadow: 0 22px 58px rgba(0, 0, 0, 0.4), 0 0 28px rgba(77, 170, 255, 0.08);
+}
+
+.card-icon {
+    display: grid;
+    place-items: center;
+    width: 58px;
+    height: 58px;
+    margin-bottom: 22px;
+    border: 1px solid rgba(110, 175, 255, 0.32);
+    border-radius: 16px;
+    background: rgba(77, 170, 255, 0.10);
+    font-size: 1.8rem;
+}
+
+.authority-card .card-icon {
+    border-color: rgba(145, 125, 255, 0.38);
+    background: rgba(108, 77, 255, 0.13);
+}
+
+.access-card h3 {
+    color: #f4f8ff;
+    font-size: clamp(1.25rem, 2vw, 1.55rem);
+    line-height: 1.3;
+}
+
+.access-card p {
+    margin-top: 13px;
+    color: var(--muted);
+    font-size: 0.98rem;
+    line-height: 1.75;
+}
+
+.access-card button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 48px;
+    margin-top: auto;
+    padding: 13px 18px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: linear-gradient(100deg, #2789ed, #4daaff);
+    color: #fff;
+    font-size: 0.98rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 8px 22px rgba(39, 137, 237, 0.18);
+    transition: filter 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.access-card p + button {
+    margin-top: 26px;
+}
+
+.authority-card button {
+    background: linear-gradient(100deg, #5941d8, #8068ff);
+    box-shadow: 0 8px 22px rgba(108, 77, 255, 0.2);
+}
+
+.access-card button:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 11px 26px rgba(39, 137, 237, 0.26);
+}
+
+.access-card button:active {
+    transform: translateY(0);
+}
+
+.access-card button:focus-visible {
+    outline: 3px solid rgba(178, 220, 255, 0.95);
+    outline-offset: 4px;
+}
+
+/* Security notice */
+.security-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    max-width: 800px;
+    margin: 30px auto 0;
+    padding: 20px 23px;
+    border: 1px solid rgba(110, 175, 255, 0.22);
+    border-radius: 16px;
+    background: rgba(5, 13, 34, 0.68);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.security-icon {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: rgba(77, 170, 255, 0.12);
+    font-size: 1.35rem;
+}
+
+.security-notice h4 {
+    margin: 1px 0 6px;
+    color: #eaf3ff;
+    font-size: 1rem;
+}
+
+.security-notice p {
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.65;
+}
+
+/* Footer */
+.footer {
+    position: relative;
+    z-index: 1;
+    padding: 19px 20px;
+    border-top: 1px solid rgba(110, 175, 255, 0.14);
+    background: rgba(1, 5, 18, 0.58);
+    text-align: center;
+}
+
+.footer p {
+    color: #879bc2;
+    font-size: 0.86rem;
+    line-height: 1.6;
+}
+
+/* Motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Tablet and mobile */
+@media (max-width: 720px) {
+    .header {
+        padding: 21px 22px;
+    }
+
+    .main-container {
+        width: min(560px, calc(100% - 32px));
+        padding-top: 42px;
+        padding-bottom: 36px;
+    }
+
+    .hero-section {
+        margin-bottom: 30px;
+    }
+
+    .access-section {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
+    .access-card {
+        padding: 25px;
+    }
+
+    .card-icon {
+        margin-bottom: 17px;
+    }
+
+    .security-notice {
+        margin-top: 22px;
+        padding: 17px;
+    }
+}
+
+@media (max-width: 380px) {
+    .main-container {
+        width: calc(100% - 24px);
+    }
+
+    .access-card {
+        padding: 21px;
+    }
+
+    .security-notice {
+        gap: 11px;
     }
 }

@@ -122,128 +122,64 @@ async function loadResources() {
         // CALCULATE RESOURCE ANALYTICS
         // ==========================================
 
+        // ==========================================
+        // CALCULATE RESOURCE ANALYTICS
+        // ==========================================
+
         let totalUnits = 0;
-
         let availableUnits = 0;
-
         let deployedUnits = 0;
 
         let availableRecords = 0;
-
         let deployedRecords = 0;
 
-
         // Store unique resource types
+        const resourceTypes = new Set();
 
-        const resourceTypes =
-            new Set();
+        resources.forEach(resource => {
+            const quantity = Number(resource.Quantity) || 0;
 
+            const status = String(resource.Status || "")
+                .trim()
+                .toLowerCase();
 
-        resources.forEach(
-            resource => {
+            resourceTypes.add(resource.Resource_Type || "Other");
 
-                const quantity =
-                    Number(
-                        resource.Quantity
-                    ) || 0;
+            // Total quantity of all resource units
+            totalUnits += quantity;
 
-
-                const status =
-                    String(
-                        resource.Status || ""
-                    )
-                        .trim()
-                        .toLowerCase();
-
-
-                // Add resource type
-
-                resourceTypes.add(
-                    resource.Resource_Type ||
-                    "Other"
-                );
-
-
-                totalUnits +=
-                    quantity;
-
-
-                if (
-                    status === "available"
-                ) {
-
-                    availableUnits +=
-                        quantity;
-
-                    availableRecords++;
-
-                }
-
-
-                if (
-                    status === "deployed"
-                ) {
-
-                    deployedUnits +=
-                        quantity;
-
-                    deployedRecords++;
-
-                }
-
+            if (status === "available") {
+                availableUnits += quantity;
+                availableRecords++;
+            } else if (status === "deployed") {
+                deployedUnits += quantity;
+                deployedRecords++;
             }
-        );
-
+        });
 
         // ==========================================
         // UPDATE DASHBOARD STATS
         // ==========================================
 
-        document
-            .getElementById(
-                "totalResources"
-            )
-            .textContent =
-                totalUnits;
+        // Count resource records, not quantities
+        document.getElementById("totalResources").textContent =
+            resources.length;
 
-
-        document
-            .getElementById(
-                "availableResources"
-            )
-            .textContent =
-                availableUnits;
-
-
-        // Update deployed resources card
+        document.getElementById("availableResources").textContent =
+            availableRecords;
 
         const deployedElement =
-            document.getElementById(
-                "deployedResources"
-            );
-
+            document.getElementById("deployedResources");
 
         if (deployedElement) {
-
-            deployedElement.textContent =
-                deployedUnits;
-
+            deployedElement.textContent = deployedRecords;
         }
 
-
-        // Update resource types card
-
         const resourceTypesElement =
-            document.getElementById(
-                "resourceTypes"
-            );
-
+            document.getElementById("resourceTypes");
 
         if (resourceTypesElement) {
-
-            resourceTypesElement.textContent =
-                resourceTypes.size;
-
+            resourceTypesElement.textContent = resourceTypes.size;
         }
 
 
@@ -327,22 +263,20 @@ async function loadResources() {
                         <td>
 
                             <button
-                                class="${
-                                    statusLower === "available"
-                                        ? "deploy-btn"
-                                        : "available-btn"
-                                }"
+                                class="${statusLower === "available"
+                        ? "deploy-btn"
+                        : "available-btn"
+                    }"
                                 onclick="updateStatus(
                                     ${resource.Resource_id},
                                     '${status}'
                                 )"
                             >
 
-                                ${
-                                    statusLower === "available"
-                                        ? "Deploy"
-                                        : "Mark Available"
-                                }
+                                ${statusLower === "available"
+                        ? "Deploy"
+                        : "Mark Available"
+                    }
 
                             </button>
 
