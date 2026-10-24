@@ -411,6 +411,148 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     );
 
+    
+    // ==========================================
+    // LOAD PUBLIC DISASTER REPORT FEED
+    // ==========================================
+
+    async function loadPublicDisasterFeed() {
+        const feedList =
+            document.getElementById("disasterFeedList");
+
+        const feedMessage =
+            document.getElementById("disasterFeedMessage");
+
+        if (!feedList || !feedMessage) {
+            console.error("Public disaster feed elements not found.");
+            return;
+        }
+
+        const API_BASE =
+            `${window.location.protocol}//${window.location.hostname}:5000/api`;
+
+        try {
+            feedMessage.textContent = "Loading disaster reports...";
+
+            const response = await fetch(
+                `${API_BASE}/reports/public-feed`
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Failed to load reports: ${response.status}`
+                );
+            }
+
+            const reports = await response.json();
+
+            feedList.replaceChildren();
+
+            if (!Array.isArray(reports) || reports.length === 0) {
+                feedMessage.textContent =
+                    "No public disaster reports are available yet.";
+                return;
+            }
+
+            feedMessage.textContent =
+                `${reports.length} disaster report(s) found.`;
+
+            reports.forEach((report) => {
+                const card = document.createElement("article");
+                card.className = "disaster-card";
+
+                const heading = document.createElement("h3");
+                heading.textContent =
+                    `Report #${report.Report_id} — ${report.Title || "Untitled report"}`;
+                card.appendChild(heading);
+
+                const status = document.createElement("span");
+                status.className = "disaster-status";
+
+                const currentStatus =
+                    String(report.Status || "Unknown").trim();
+
+                if (currentStatus.toLowerCase() === "submitted") {
+                    status.textContent = "Not yet verified";
+                } else if (currentStatus.toLowerCase() === "verified") {
+                    status.textContent = "Authority verified";
+                    status.classList.add("verified");
+                } else if (currentStatus.toLowerCase() === "resolved") {
+                    status.textContent = "Resolved";
+                    status.classList.add("resolved");
+                } else {
+                    status.textContent = `Status: ${currentStatus}`;
+                }
+
+                card.appendChild(status);
+
+                function addDetail(label, value) {
+                    const paragraph = document.createElement("p");
+                    const strong = document.createElement("strong");
+
+                    strong.textContent = `${label}: `;
+                    paragraph.appendChild(strong);
+                    paragraph.appendChild(
+                        document.createTextNode(
+                            value === null || value === undefined || value === ""
+                                ? "N/A"
+                                : String(value)
+                        )
+                    );
+
+                    card.appendChild(paragraph);
+                }
+
+                addDetail("Description", report.Description);
+                addDetail("Category", report.Category);
+                addDetail("Severity", report.Severity);
+                addDetail("Priority", report.Priority);
+                addDetail("Location", report.Location_Name);
+
+                addDetail(
+                    "Reported",
+                    report.Created_At
+                        ? new Date(report.Created_At).toLocaleString()
+                        : "N/A"
+                );
+
+                if (report.Photo_Path) {
+                    const normalizedPath =
+                        String(report.Photo_Path).replace(/\\/g, "/");
+
+                    const filename = normalizedPath.split("/").pop();
+
+                    if (filename && filename !== "." && filename !== "..") {
+                        const image = document.createElement("img");
+
+                        image.src =
+                            `${window.location.protocol}//${window.location.hostname}:5000/uploads/${encodeURIComponent(filename)}`;
+
+                        image.alt = `Photo for report ${report.Report_id}`;
+
+                        image.addEventListener("error", () => {
+                            image.remove();
+                        });
+
+                        card.appendChild(image);
+                    }
+                }
+
+                feedList.appendChild(card);
+            });
+        } catch (error) {
+            console.error("Public disaster feed error:", error);
+
+            feedList.replaceChildren();
+            feedMessage.textContent =
+                "Unable to load disaster reports. Please try again later.";
+        }
+    }
+
+    // Load the public feed when the page opens.
+    loadPublicDisasterFeed();
+
+
 
     // ==========================================
     // AUTO-SEARCH IF REPORT ID COMES FROM URL

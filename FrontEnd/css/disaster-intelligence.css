@@ -1,250 +1,506 @@
-body {
-    font-family: Arial, sans-serif;
-    background: #f4f6f9;
+/* ==========================================
+   RescueAI - Disaster Events Dashboard
+   Matching Dark Space Theme
+========================================== */
+
+:root {
+    --bg: #01030a;
+    --text: #eef3ff;
+    --muted: #9fb0d4;
+    --accent: #4daaff;
+    --accent-2: #6c4dff;
+    --danger: #ff7a7a;
+    --warning: #ffb86b;
+    --success: #62e6b2;
+    --card: rgba(6, 14, 38, 0.78);
+    --border: rgba(110, 175, 255, 0.28);
+    --shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+}
+
+/* GLOBAL */
+* {
     margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    min-height: 100%;
+    color-scheme: dark;
+}
+
+body {
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
     padding: 20px;
+    overflow-x: hidden;
 }
 
 .container {
+    width: 100%;
     max-width: 1200px;
     margin: auto;
 }
 
-h1 {
-    text-align: center;
+/* Three dashboard buttons with equal widths and spacing */
+.dashboard-actions {
+    display: flex;
+    align-items: stretch;
+    gap: 20px;
+    width: 100%;
     margin-bottom: 30px;
 }
 
+.dashboard-actions .map-btn,
+.dashboard-actions .refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 0;
+    min-width: 0;
+    margin: 0;
+    padding: 12px 10px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.5;
+}
+
+/* PAGE HEADING */
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #f4f8ff;
+    font-size: clamp(1.7rem, 4vw, 2.3rem);
+    text-shadow: 0 0 22px rgba(77, 170, 255, 0.2);
+}
 
 /* ==============================
    STATISTICS
-   ============================== */
+============================== */
 
 .stats-container {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 20px;
     margin-bottom: 30px;
 }
 
 .stat-card {
-    background: white;
+    position: relative;
+    min-width: 0;
+    background: linear-gradient(145deg,
+            rgba(10, 24, 58, 0.88),
+            var(--card));
     padding: 25px 20px;
     text-align: center;
-    border-radius: 12px;
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12);
-    border-top: 5px solid #dc3545;
+    border: 1px solid var(--border);
+    border-top: 4px solid var(--accent);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    transition: transform 220ms ease, border-color 220ms ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(110, 190, 255, 0.5);
 }
 
 .stat-card h2 {
     margin: 0;
     font-size: 32px;
-    color: #dc3545;
+    color: var(--accent);
 }
 
 .stat-card p {
     margin: 10px 0 0;
     font-size: 15px;
     font-weight: bold;
-    color: #555;
+    color: var(--muted);
+    line-height: 1.5;
 }
-
 
 /* ==============================
    EVENT CARDS
-   ============================== */
+============================== */
 
 .event-card {
-    background: white;
-    border-left: 6px solid #dc3545;
-    padding: 20px;
+    position: relative;
+    min-width: 0;
+    background: linear-gradient(145deg,
+            rgba(10, 24, 58, 0.88),
+            var(--card));
+    border: 1px solid var(--border);
+    border-left: 5px solid var(--accent);
+    padding: 22px;
     margin-bottom: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: border-color 220ms ease, transform 220ms ease;
+}
+
+.event-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(110, 190, 255, 0.45);
 }
 
 .event-card h3 {
     margin-top: 0;
     margin-bottom: 15px;
-    color: #222;
+    color: var(--text);
+    font-size: 1.15rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
 }
 
 .event-card p {
     margin: 10px 0;
-    color: #444;
+    color: var(--muted);
+    line-height: 1.7;
+    overflow-wrap: anywhere;
 }
-
 
 /* ==============================
-   RESPONSIVE
-   ============================== */
+   MAP BUTTON
+============================== */
 
-@media (max-width: 900px) {
-
-    .stats-container {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-}
-
-@media (max-width: 600px) {
-
-    .stats-container {
-        grid-template-columns: 1fr;
-    }
-
-    body {
-        padding: 10px;
-    }
-
-}
 
 .map-btn {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: fit-content;
-    margin: 0 auto 30px;
-
+    max-width: 100%;
+    margin: 0 10px 20px 0;
     padding: 12px 24px;
-
-    background: #dc3545;
+    background: linear-gradient(100deg, #2789ed, #4daaff);
     color: white;
-
     text-decoration: none;
+    text-align: center;
     font-weight: bold;
-
-    border-radius: 8px;
-
-    transition: 0.3s;
+    border: 1px solid rgba(110, 190, 255, 0.25);
+    border-radius: 10px;
+    box-shadow: 0 8px 22px rgba(39, 137, 237, 0.18);
+    vertical-align: middle;
+    white-space: nowrap;
+    transition: filter 180ms ease, transform 180ms ease;
 }
 
+
 .map-btn:hover {
-    background: #b02a37;
+    filter: brightness(1.1);
+    transform: translateY(-2px);
 }
 
 /* ==============================
    DISASTER TYPE COLORS
-   ============================== */
+============================== */
 
 .event-card.flood {
-    border-left-color: #007bff;
+    border-left-color: #4daaff;
 }
 
 .event-card.storm {
-    border-left-color: #6f42c1;
+    border-left-color: #a99aff;
 }
 
 .event-card.heatwave {
-    border-left-color: #fd7e14;
+    border-left-color: #ffb86b;
 }
 
 .event-card.earthquake {
-    border-left-color: #dc3545;
+    border-left-color: var(--danger);
 }
 
 /* ==============================
    EVENT STATUS
-   ============================== */
+============================== */
 
 .event-status {
     display: inline-block;
-    padding: 4px 10px;
+    padding: 5px 11px;
+    border: 1px solid transparent;
     border-radius: 20px;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: bold;
+    line-height: 1.5;
 }
 
 .event-status.active {
-    background: #ffe5e5;
-    color: #dc3545;
+    background: rgba(255, 122, 122, 0.1);
+    border-color: rgba(255, 122, 122, 0.24);
+    color: var(--danger);
 }
 
 .event-status.resolved {
-    background: #e6f7ed;
-    color: #198754;
+    background: rgba(98, 230, 178, 0.09);
+    border-color: rgba(98, 230, 178, 0.22);
+    color: var(--success);
 }
 
 .event-status.pending {
-    background: #fff3cd;
-    color: #856404;
+    background: rgba(255, 184, 107, 0.1);
+    border-color: rgba(255, 184, 107, 0.22);
+    color: var(--warning);
 }
+
+/* ==============================
+   REFRESH BUTTON
+============================== */
+
 
 .refresh-btn {
-    display: block;
-    margin: -15px auto 30px;
-
-    padding: 10px 22px;
-
-    background: #198754;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 0 20px 0;
+    padding: 11px 22px;
+    background: linear-gradient(100deg, #5941d8, #8068ff);
     color: white;
-
-    border: none;
-    border-radius: 8px;
-
+    border: 1px solid rgba(169, 154, 255, 0.25);
+    border-radius: 9px;
     font-weight: bold;
+    font-family: inherit;
     cursor: pointer;
-
-    transition: 0.3s;
+    box-shadow: 0 8px 22px rgba(108, 77, 255, 0.18);
+    vertical-align: middle;
+    white-space: nowrap;
+    transition: filter 180ms ease, transform 180ms ease;
 }
 
+
 .refresh-btn:hover {
-    background: #146c43;
+    filter: brightness(1.1);
+    transform: translateY(-1px);
 }
 
 /* ==============================
    RISK SUMMARY
-   ============================== */
+============================== */
 
 .risk-container {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 20px;
     margin-bottom: 30px;
 }
 
 .risk-card {
-    background: white;
-    padding: 20px;
+    min-width: 0;
+    background: linear-gradient(145deg,
+            rgba(10, 24, 58, 0.88),
+            var(--card));
+    padding: 22px 20px;
     text-align: center;
-    border-radius: 12px;
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12);
+    border: 1px solid var(--border);
+    border-top: 4px solid var(--accent);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: transform 220ms ease;
+}
+
+.risk-card:hover {
+    transform: translateY(-3px);
 }
 
 .risk-card h2 {
     margin: 0;
     font-size: 30px;
+    line-height: 1.4;
+    color: var(--accent);
 }
 
 .risk-card p {
     margin: 8px 0 0;
+    color: var(--muted);
     font-weight: bold;
+    line-height: 1.5;
 }
 
-/* High Risk */
-
+/* HIGH RISK */
 .high-risk {
-    border-top: 5px solid #dc3545;
+    border-top-color: var(--danger);
 }
 
 .high-risk h2 {
-    color: #dc3545;
+    color: var(--danger);
 }
 
-/* Medium Risk */
-
+/* MEDIUM RISK */
 .medium-risk {
-    border-top: 5px solid #fd7e14;
+    border-top-color: var(--warning);
 }
 
 .medium-risk h2 {
-    color: #fd7e14;
+    color: var(--warning);
 }
 
-/* Low Risk */
-
+/* LOW RISK */
 .low-risk {
-    border-top: 5px solid #198754;
+    border-top-color: var(--success);
 }
 
 .low-risk h2 {
-    color: #198754;
+    color: var(--success);
+}
+
+/* KEYBOARD ACCESSIBILITY */
+a:focus-visible,
+button:focus-visible {
+    outline: 3px solid rgba(178, 220, 255, 0.95);
+    outline-offset: 4px;
+}
+
+/* ==============================
+   RESPONSIVE
+============================== */
+
+@media (max-width: 900px) {
+    .stats-container {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 600px) {
+    body {
+        padding: 12px;
+    }
+
+    .stats-container,
+    .risk-container {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .stat-card,
+    .risk-card {
+        padding: 22px 16px;
+    }
+
+    .event-card {
+        padding: 18px;
+    }
+
+
+    .dashboard-actions {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .dashboard-actions .map-btn,
+    .dashboard-actions .refresh-btn {
+        width: 100%;
+    }
+
+}
+
+/* REDUCED MOTION ACCESSIBILITY */
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ========================================
+   Disaster Events Section
+======================================== */
+
+#disasterEventsSection {
+    margin-top: 35px;
+    padding: 25px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+#disasterEventsSection>h2 {
+    margin-bottom: 22px;
+    color: var(--accent);
+    font-size: 26px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+}
+
+#disasterEventsContainer {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
+}
+
+.disaster-event-card {
+    min-width: 0;
+    padding: 20px;
+    background: rgba(10, 24, 55, 0.85);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 12px;
+    overflow-wrap: anywhere;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.disaster-event-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+}
+
+.disaster-event-card h3 {
+    margin-bottom: 14px;
+    color: var(--text);
+    font-size: 19px;
+    line-height: 1.4;
+}
+
+.disaster-event-card p {
+    margin-top: 9px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.disaster-event-card p strong {
+    color: var(--text);
+}
+
+#disasterEventsContainer .no-data {
+    grid-column: 1 / -1;
+    padding: 20px;
+    color: var(--muted);
+    text-align: center;
+    background: rgba(6, 14, 38, 0.7);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+}
+
+@media (max-width: 480px) {
+    #disasterEventsSection {
+        padding: 16px;
+    }
+
+    #disasterEventsSection>h2 {
+        font-size: 22px;
+    }
+
+    #disasterEventsContainer {
+        grid-template-columns: 1fr;
+    }
+
+    .disaster-event-card {
+        padding: 16px;
+    }
 }

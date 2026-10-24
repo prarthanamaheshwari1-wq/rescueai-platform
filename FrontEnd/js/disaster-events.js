@@ -1,7 +1,13 @@
 async function loadDisasterEvents() {
 
-    const tableBody =
-        document.getElementById("disasterTableBody");
+    const eventsContainer =
+        document.getElementById("disasterEventsContainer");
+
+
+    if (!eventsContainer) {
+        console.error("Missing disasterEventsContainer in HTML.");
+        return;
+    }
 
     try {
 
@@ -86,15 +92,10 @@ async function loadDisasterEvents() {
             ).length;
 
 
-        document.getElementById(
-            "totalAlerts"
-        ).textContent =
+        document.getElementById("totalEvents").textContent =
             totalCount;
 
-
-        document.getElementById(
-            "activeAlerts"
-        ).textContent =
+        document.getElementById("activeEvents").textContent =
             activeCount;
 
 
@@ -103,18 +104,11 @@ async function loadDisasterEvents() {
         // ==========================================
 
         if (disasters.length === 0) {
-
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="no-data">
-                        <i class="fa-solid fa-circle-check"></i>
-                        <p>
-                            No disaster alerts found in the system.
-                        </p>
-                    </td>
-                </tr>
-            `;
-
+            eventsContainer.innerHTML = `
+        <p class="no-data">
+            No disaster events found.
+        </p>
+    `;
             return;
         }
 
@@ -217,129 +211,51 @@ async function loadDisasterEvents() {
         // RENDER TABLE ROWS
         // ==========================================
 
-        const rowsHtml =
-            disasters
-                .map(disaster => {
+        eventsContainer.innerHTML = disasters.map(disaster => {
+            const type =
+                disaster.Disaster_Type ||
+                disaster.disaster_type ||
+                "General";
 
-                    const statusStr =
-                        (
-                            disaster.Status ||
-                            disaster.status ||
-                            "Inactive"
-                        ).trim();
+            const name =
+                disaster.Disaster_Name ||
+                disaster.disaster_name ||
+                "Untitled Alert";
 
+            const description =
+                disaster.Description ||
+                disaster.description ||
+                "No description provided.";
 
-                    const statusLower =
-                        statusStr.toLowerCase();
+            const status =
+                disaster.Status ||
+                disaster.status ||
+                "Unknown";
 
+            const startDate = formatDate(
+                disaster.Start_Date ||
+                disaster.start_date
+            );
 
-                    let badgeClass =
-                        "badge-inactive";
+            const safeText = value =>
+                String(value).replace(/[&<>"']/g, char => ({
+                    "&": "&amp;",
+                    "<": "&lt;",
+                    ">": "&gt;",
+                    '"': "&quot;",
+                    "'": "&#39;"
+                })[char]);
 
-
-                    if (
-                        statusLower ===
-                        "active"
-                    ) {
-
-                        badgeClass =
-                            "badge-active";
-
-                    }
-
-
-                    if (
-                        statusLower ===
-                        "resolved"
-                    ) {
-
-                        badgeClass =
-                            "badge-resolved";
-
-                    }
-
-
-                    const disasterType =
-                        disaster.Disaster_Type ||
-                        disaster.disaster_type ||
-                        "General";
-
-
-                    const icon =
-                        getDisasterIcon(
-                            disasterType
-                        );
-
-
-                    return `
-                        <tr>
-
-                            <td>
-                                <strong>
-                                    #${
-                                        disaster.Disaster_id ||
-                                        disaster.Disaster_ID ||
-                                        "N/A"
-                                    }
-                                </strong>
-                            </td>
-
-                            <td class="disaster-type">
-                                ${icon}
-                                ${disasterType}
-                            </td>
-
-                            <td>
-                                <strong>
-                                    ${
-                                        disaster.Disaster_Name ||
-                                        disaster.disaster_name ||
-                                        "Untitled Alert"
-                                    }
-                                </strong>
-                            </td>
-
-                            <td>
-                                ${
-                                    disaster.Description ||
-                                    disaster.description ||
-                                    "No description provided."
-                                }
-                            </td>
-
-                            <td>
-                                ${
-                                    formatDate(
-                                        disaster.Start_Date ||
-                                        disaster.start_date
-                                    )
-                                }
-                            </td>
-
-                            <td>
-                                ${
-                                    formatDate(
-                                        disaster.End_Date ||
-                                        disaster.end_date
-                                    )
-                                }
-                            </td>
-
-                            <td>
-                                <span class="badge ${badgeClass}">
-                                    ${statusStr}
-                                </span>
-                            </td>
-
-                        </tr>
-                    `;
-
-                })
-                .join("");
-
-
-        tableBody.innerHTML =
-            rowsHtml;
+            return `
+        <article class="disaster-event-card">
+            <h3>${safeText(name)}</h3>
+            <p><strong>Type:</strong> ${safeText(type)}</p>
+            <p><strong>Description:</strong> ${safeText(description)}</p>
+            <p><strong>Status:</strong> ${safeText(status)}</p>
+            <p><strong>Start Date:</strong> ${safeText(startDate)}</p>
+        </article>
+    `;
+        }).join("");
 
 
     } catch (error) {
@@ -350,33 +266,17 @@ async function loadDisasterEvents() {
         );
 
 
-        document.getElementById(
-            "totalAlerts"
-        ).textContent = "0";
+        document.getElementById("totalEvents").textContent = "0";
+        document.getElementById("activeEvents").textContent = "0";
 
-
-        document.getElementById(
-            "activeAlerts"
-        ).textContent = "0";
-
-
-        tableBody.innerHTML = `
-            <tr>
-                <td
-                    colspan="7"
-                    class="no-data"
-                    style="color: #ef4444;"
-                >
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-
-                    <p>
-                        Failed to load disaster alerts.
-                        Please check backend API connection.
-                    </p>
-
-                </td>
-            </tr>
-        `;
+        if (eventsContainer) {
+            eventsContainer.innerHTML = `
+        <p class="no-data">
+            Failed to load disaster events.
+            Please check the backend API connection.
+        </p>
+    `;
+        }
 
     }
 

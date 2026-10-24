@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,7 @@
     <!-- defer attribute add kiya hai taaki HTML pehle render ho jaye -->
     <script src="js/report-tracking.js" defer></script>
 </head>
+
 <body>
 
     <div class="container">
@@ -18,11 +20,7 @@
 
         <div class="search-box">
 
-            <input
-                type="text"
-                id="reportId"
-                placeholder="Enter Report ID"
-            >
+            <input type="text" id="reportId" placeholder="Enter Report ID">
 
             <button id="trackBtn">
                 Track Report
@@ -32,7 +30,21 @@
 
         <div id="reportResult"></div>
 
+        <!-- Public Disaster Reports Feed -->
+        <section id="publicDisasterFeed">
+            <h2 class="disaster-feed-heading">
+                Recent Disaster Reports
+            </h2>
+
+            <p class="disaster-feed-message" id="disasterFeedMessage">
+                Loading disaster reports...
+            </p>
+
+            <div id="disasterFeedList"></div>
+        </section>
+
     </div>
 
 </body>
+
 </html>

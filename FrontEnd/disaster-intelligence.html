@@ -14,13 +14,19 @@
 
         <h1>🌍 Disaster Intelligence Dashboard</h1>
 
-        <a href="map-dashboard.html" class="map-btn">
-            🗺️ Open Live Disaster Map
-        </a>
+        <div class="dashboard-actions">
+            <a href="map-dashboard.html" class="map-btn">
+                🗺️ Open Live Disaster Map
+            </a>
 
-        <button onclick="loadEvents()" class="refresh-btn">
-            🔄 Refresh Intelligence
-        </button>
+            <a href="disaster-intelligence.html#disasterEventsSection" class="map-btn">
+                📋 View Disaster Events
+            </a>
+
+            <button onclick="loadEvents()" class="refresh-btn">
+                🔄 Refresh Intelligence
+            </button>
+        </div>
 
         <div class="stats-container">
 
@@ -67,11 +73,19 @@
 
         <div id="eventsContainer"></div>
 
+        <section id="disasterEventsSection">
+            <h2>Disaster Events</h2>
+            <div id="disasterEventsContainer">
+                <p>Loading disaster events...</p>
+            </div>
+        </section>
+
     </div>
 
 
     <script src="js/auth-guard.js"></script>
     <script src="js/disaster-intelligence.js"></script>
+    <script src="js/disaster-events.js"></script>
 
 </body>
 

@@ -81,7 +81,16 @@
                     userRole === "volunteer" &&
                     currentPage === "ai-analysis.html";
 
-                if (!isAuthority && !isVolunteerAllowed) {
+                const authorityPages = [
+                    "disaster-intelligence.html"
+                ];
+
+                const isAuthorityPage = authorityPages.includes(currentPage);
+
+                if (
+                    (!isAuthority && !isVolunteerAllowed) ||
+                    (isAuthorityPage && !isAuthority)
+                ) {
                     window.location.replace("authority-login.html");
                     return;
                 }

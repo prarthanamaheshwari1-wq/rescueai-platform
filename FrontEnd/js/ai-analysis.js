@@ -8,6 +8,17 @@ let categoryChartInstance = null;
 let priorityChartInstance = null;
 let allAnalyses = [];
 
+// Safely display untrusted text inside HTML templates.
+function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[character]);
+}
+
 
 // ==========================================
 // AUTHENTICATED FETCH
@@ -151,7 +162,7 @@ async function loadAnalysis() {
         createCategoryChart(categoryCounts);
         createPriorityChart(priorityCounts);
 
-                // ==============================
+        // ==============================
         // Search
         // ==============================
 
@@ -307,6 +318,12 @@ function renderAnalysisCards(analyses) {
     }
 
     const cardsHTML = analyses.map(item => {
+        const reportId =
+            item.Report_id ??
+            item.Report_ID ??
+            item.report_id ??
+            item.id ??
+            "";
         const priority = item.AI_Priority || "Low";
 
         let priorityClass = "low";
@@ -454,7 +471,7 @@ function renderAnalysisCards(analyses) {
                     ${item.AI_Recommendation || "No recommendation available."}
                 </p>
 
-                <button onclick="viewReport(${Number(item.Report_id)})">
+                <button onclick="viewReport(${Number(reportId)})">
                     View Report
                 </button>
 

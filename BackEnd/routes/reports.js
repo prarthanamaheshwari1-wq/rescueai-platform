@@ -1353,6 +1353,38 @@ router.get(
 );
 
 
+router.get("/public-feed", async (req, res) => {
+    try {
+        const request = new sql.Request();
+
+        const result = await request.query(`
+            SELECT
+                Report_id,
+                Title,
+                Description,
+                Category,
+                Severity,
+                Priority,
+                Status,
+                Location_Name,
+                Created_At,
+                Photo_Path
+            FROM Incident_Reports
+            WHERE Status <> 'Rejected'
+            ORDER BY Report_id DESC
+        `);
+
+        return res.status(200).json(result.recordset);
+    } catch (error) {
+        console.error("Public Disaster Feed Error:", error);
+        return res.status(500).json({
+            message: "Unable to load public disaster reports."
+        });
+    }
+});
+
+
+
 // ==========================================
 // GET SINGLE REPORT + AI + RESOURCES + VOLUNTEERS
 // ==========================================
