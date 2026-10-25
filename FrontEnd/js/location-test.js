@@ -1,5 +1,9 @@
 console.log("location-test.js loaded successfully");
 
+window.addEventListener("beforeunload", function () {
+    console.trace("PAGE UNLOAD TRIGGERED");
+});
+
 let latitude = null;
 let longitude = null;
 
@@ -21,6 +25,38 @@ const emergencyForm = document.getElementById("emergencyForm");
 const submitButton = document.getElementById("submitButton");
 const result = document.getElementById("result");
 
+
+async function getLocationNameFromCoordinates(lat, lon) {
+    const url = new URL(
+        "https://nominatim.openstreetmap.org/reverse"
+    );
+
+    url.search = new URLSearchParams({
+        format: "jsonv2",
+        lat: String(lat),
+        lon: String(lon),
+        zoom: "18",
+        addressdetails: "1"
+    }).toString();
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+        throw new Error(
+            `Reverse geocoding failed: ${response.status}`
+        );
+    }
+
+    const data = await response.json();
+
+    if (!data.display_name) {
+        throw new Error("No location name was returned.");
+    }
+
+    return data.display_name;
+}
+
+
 // LOCATION DETECTION
 locationButton.addEventListener("click", (e) => {
     e.preventDefault(); // Extra protection against button submit
@@ -38,6 +74,26 @@ locationButton.addEventListener("click", (e) => {
         (position) => {
             latitude = position.coords.latitude;
             longitude = position.coords.longitude;
+
+            const locationNameInput =
+                document.getElementById("locationName");
+
+            locationStatus.textContent =
+                "Coordinates detected. Finding location name...";
+
+            getLocationNameFromCoordinates(latitude, longitude)
+                .then((name) => {
+                    locationNameInput.value = name;
+
+                    locationStatus.textContent =
+                        "Location found. Please verify the location name.";
+                })
+                .catch((error) => {
+                    console.error("Reverse geocoding error:", error);
+
+                    locationStatus.textContent =
+                        "Coordinates detected, but the location name could not be found. Please enter it manually.";
+                });
 
             if (latitudeElement) latitudeElement.innerText = latitude ? latitude.toFixed(6) : "—";
             if (longitudeElement) longitudeElement.innerText = longitude ? longitude.toFixed(6) : "—";
@@ -157,6 +213,10 @@ emergencyForm.addEventListener("submit", async function (event) {
             method: "POST",
             body: formData
         });
+
+        console.log("FETCH COMPLETED", response.status);
+
+        console.log("RESPONSE RECEIVED; parsing JSON");
 
         const data = await response.json();
 

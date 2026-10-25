@@ -51,8 +51,7 @@
             </div>
 
 
-            <form id="emergencyForm">
-
+            <form id="emergencyForm" action="javascript:void(0);" onsubmit="return false;">
 
                 <!-- BASIC INFORMATION -->
                 <section class="card">
@@ -73,12 +72,7 @@
                             Emergency Title
                         </label>
 
-                        <input
-                            type="text"
-                            id="title"
-                            placeholder="Example: Building Fire Near Main Road"
-                            required
-                        >
+                        <input type="text" id="title" placeholder="Example: Building Fire Near Main Road" required>
 
                     </div>
 
@@ -140,12 +134,9 @@
                             Description
                         </label>
 
-                        <textarea
-                            id="description"
-                            rows="5"
+                        <textarea id="description" rows="5"
                             placeholder="Describe the emergency, affected people, visible damage, or any important information..."
-                            required
-                        ></textarea>
+                            required></textarea>
 
                     </div>
 
@@ -184,11 +175,7 @@
 
                         </div>
 
-                        <button
-                            type="button"
-                            id="locationButton"
-                            class="location-button"
-                        >
+                        <button type="button" id="locationButton" class="location-button">
                             Detect Location
                         </button>
 
@@ -227,13 +214,8 @@
                             Location Name
                         </label>
 
-                        <input
-                            type="text"
-                            id="locationName"
-                            placeholder="Example: Near City Hospital"
-                            required
-                        >
-
+                        <input type="text" id="locationName" placeholder="Location will be detected automatically"
+                            readonly required>
                     </div>
 
                 </section>
@@ -255,11 +237,7 @@
                     </div>
 
 
-                    <label
-                        for="photo"
-                        class="upload-area"
-                        id="uploadArea"
-                    >
+                    <label for="photo" class="upload-area" id="uploadArea">
 
                         <div class="upload-icon">
                             📷
@@ -277,26 +255,14 @@
                             Choose Photo
                         </span>
 
-                        <input
-                            type="file"
-                            id="photo"
-                            accept="image/jpeg,image/png,image/jpg,image/webp"
-                            hidden
-                        >
+                        <input type="file" id="photo" accept="image/jpeg,image/png,image/jpg,image/webp" hidden>
 
                     </label>
 
 
-                    <div
-                        id="photoPreview"
-                        class="photo-preview hidden"
-                    >
+                    <div id="photoPreview" class="photo-preview hidden">
 
-                        <img
-                            id="previewImage"
-                            src=""
-                            alt="Selected emergency photo"
-                        >
+                        <img id="previewImage" src="" alt="Selected emergency photo">
 
                         <div class="photo-info">
 
@@ -308,11 +274,7 @@
 
                         </div>
 
-                        <button
-                            type="button"
-                            id="removePhoto"
-                            class="remove-button"
-                        >
+                        <button type="button" id="removePhoto" class="remove-button">
                             Remove
                         </button>
 
@@ -337,11 +299,7 @@
                     </div>
 
 
-                    <button
-                        type="submit"
-                        id="submitButton"
-                        class="submit-button"
-                    >
+                    <button type="submit" id="submitButton" class="submit-button">
 
                         <span>🚨</span>
 
@@ -350,10 +308,7 @@
                     </button>
 
 
-                    <div
-                        id="result"
-                        class="result hidden"
-                    ></div>
+                    <div id="result" class="result hidden"></div>
 
                 </section>
 

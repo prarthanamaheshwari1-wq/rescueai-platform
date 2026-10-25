@@ -62,97 +62,78 @@ router.post(
             // INPUT VALIDATION
             // ==========================================
 
-            if (
-                !title ||
-                !description ||
-                !category ||
-                !locationName ||
-                !req.file
-            ) {
 
+            const requiredFields = {
+                title,
+                description,
+                category,
+                locationName
+            };
+
+            const missingFields = Object.entries(requiredFields)
+                .filter(([key, value]) =>
+                    typeof value !== "string" || value.trim().length === 0
+                )
+                .map(([key]) => key);
+
+            if (missingFields.length > 0 || !req.file) {
                 if (req.file) {
                     safeDeleteFile(req.file.path);
                 }
 
                 return res.status(400).json({
-
                     message:
-                        "Title, description, category, location, and a mandatory photo are required."
-
+                        "Title, description, category, location, and a mandatory photo are required.",
+                    missingFields: [
+                        ...missingFields,
+                        ...(!req.file ? ["photo"] : [])
+                    ]
                 });
-
             }
 
+
+
             // ==========================================
-            // VALIDATE LATITUDE
+            // VALIDATE LATITUDE AND LONGITUDE
             // ==========================================
 
-            let parsedLatitude = null;
+            const parsedLatitude = Number(latitude);
+            const parsedLongitude = Number(longitude);
 
             if (
-                latitude !== undefined &&
-                latitude !== null &&
-                latitude !== ""
+                latitude === undefined ||
+                latitude === null ||
+                String(latitude).trim() === "" ||
+                !Number.isFinite(parsedLatitude) ||
+                parsedLatitude < -90 ||
+                parsedLatitude > 90
             ) {
-
-                parsedLatitude = Number(latitude);
-
-                if (
-                    !Number.isFinite(parsedLatitude) ||
-                    parsedLatitude < -90 ||
-                    parsedLatitude > 90
-                ) {
-
-                    if (req.file) {
-                        safeDeleteFile(req.file.path);
-                    }
-
-                    return res.status(400).json({
-
-                        message:
-                            "Invalid latitude."
-
-                    });
-
+                if (req.file) {
+                    safeDeleteFile(req.file.path);
                 }
 
+                return res.status(400).json({
+                    message: "Valid latitude is required."
+                });
             }
-
-
-            // ==========================================
-            // VALIDATE LONGITUDE
-            // ==========================================
-
-            let parsedLongitude = null;
 
             if (
-                longitude !== undefined &&
-                longitude !== null &&
-                longitude !== ""
+                longitude === undefined ||
+                longitude === null ||
+                String(longitude).trim() === "" ||
+                !Number.isFinite(parsedLongitude) ||
+                parsedLongitude < -180 ||
+                parsedLongitude > 180
             ) {
-
-                parsedLongitude = Number(longitude);
-
-                if (
-                    !Number.isFinite(parsedLongitude) ||
-                    parsedLongitude < -180 ||
-                    parsedLongitude > 180
-                ) {
-
-                    if (req.file) {
-                        safeDeleteFile(req.file.path);
-                    }
-
-                    return res.status(400).json({
-
-                        message:
-                            "Invalid longitude."
-
-                    });
-
+                if (req.file) {
+                    safeDeleteFile(req.file.path);
                 }
 
+                return res.status(400).json({
+                    message: "Valid longitude is required."
+                });
             }
+
 
 
             // ==========================================

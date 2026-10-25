@@ -7,6 +7,21 @@ const reportId =
 const validReportId =
     reportId && /^\d+$/.test(reportId) ? reportId : null;
 
+// Ensures ISO timestamp strings missing a timezone offset are correctly parsed as UTC
+// Parses timestamp directly without applying UTC timezone shifts
+function formatDate(dateString) {
+    if (!dateString) return "N/A";
+
+    // Replaces space between date and time with 'T' for clean cross-browser parsing
+    let safeString = String(dateString).trim().replace(" ", "T");
+
+    // Remove any trailing 'Z' or offset if present to force local interpretation
+    safeString = safeString.replace(/(Z|[+-]\d{2}:\d{2})$/, "");
+
+    const date = new Date(safeString);
+    return isNaN(date.getTime()) ? "N/A" : date.toLocaleString();
+}
+
 // Safely escape untrusted text before inserting it into HTML.
 function escapeHTML(value) {
     return String(value ?? "").replace(/[&<>"']/g, character => {
@@ -231,15 +246,31 @@ async function loadReportDetails() {
             </div>
 
 
-            <div class="detail">
+            
+<div class="detail">
+    <span class="label">
+        Location:
+    </span>
 
-                <span class="label">
-                    Location:
-                </span>
+    ${escapeHTML(report.Location_Name || "N/A")}
+</div>
 
-                ${escapeHTML(report.Location_Name || "N/A")}
+<div class="detail">
+    <span class="label">
+        Latitude:
+    </span>
 
-            </div>
+    ${escapeHTML(report.Latitude ?? "N/A")}
+</div>
+
+<div class="detail">
+    <span class="label">
+        Longitude:
+    </span>
+
+    ${escapeHTML(report.Longitude ?? "N/A")}
+</div>
+
 
 
             <div class="detail">
@@ -248,11 +279,7 @@ async function loadReportDetails() {
                     Created:
                 </span>
 
-                ${escapeHTML(
-            report.Created_At
-                ? new Date(report.Created_At).toLocaleString()
-                : "N/A"
-        )}
+                ${escapeHTML(formatDate(report.Created_At))}
 
             </div>
 
@@ -370,11 +397,7 @@ async function loadReportDetails() {
                     Analyzed At:
                 </span>
 
-                ${escapeHTML(
-            aiAnalysis.Analyzed_At
-                ? new Date(aiAnalysis.Analyzed_At).toLocaleString()
-                : "N/A"
-        )}
+                ${escapeHTML(formatDate(aiAnalysis.Analyzed_At))}
 
             </div>
 
