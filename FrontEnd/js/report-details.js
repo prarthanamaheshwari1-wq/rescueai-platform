@@ -573,6 +573,46 @@ async function loadReportDetails() {
 </h3>
 
 
+
+${(() => {
+                const duplicate = report.PossibleDuplicate || {};
+                const checkCompleted = duplicate.CheckCompleted === true;
+                const isDuplicate = duplicate.IsPossibleDuplicate === true;
+
+                if (!checkCompleted) {
+                    return `
+            <div style="margin: 12px 0; padding: 14px 16px; border: 1px solid #e5b7b7; border-radius: 8px; background: #fff1f1; color: #8a3030; font-family: sans-serif;">
+                <strong>⚠️ Duplicate Check Unavailable</strong>
+                <p>No conclusion about image uniqueness can be made because RescueAI could not confirm that the duplicate check completed successfully.</p>
+            </div>
+        `;
+                }
+
+                if (!isDuplicate) {
+                    return `
+            <div style="margin: 12px 0; padding: 14px 16px; border: 1px solid #b7dfc4; border-radius: 8px; background: #f0fff4; color: #22543d; font-family: sans-serif;">
+                <strong>Image Duplicate Check</strong>
+                <p>No possible duplicate was identified among the images checked in RescueAI. This does not prove that the image is unique or authentic.</p>
+            </div>
+        `;
+                }
+
+                return `
+        <div style="margin: 12px 0; padding: 14px 16px; border: 1px solid #f0d58c; border-radius: 8px; background: #fff8e5; color: #795b12; font-family: sans-serif;">
+            <strong>⚠️ Possible Duplicate Image</strong>
+            <p>A similar image was found in an earlier RescueAI report. This does not mean the current disaster is false. Both reports must be preserved and assessed.</p>
+            <p>
+                <strong>Related report ID:</strong>
+                ${escapeHTML(duplicate.SimilarReportId ?? "Unavailable")}
+                <br>
+                <strong>Image distance:</strong>
+                ${escapeHTML(duplicate.HammingDistance ?? "Unavailable")}
+            </p>
+        </div>
+    `;
+            })()}
+
+
 ${photoUrl
                 ? `
         <div style="margin: 16px 0 24px; text-align: center;">
@@ -669,6 +709,85 @@ ${(() => {
             })()}
 
 
+            ${(() => {
+                const verification =
+                    aiAnalysis.Image_Source_Verification || {};
+
+                const status = String(
+                    verification.Status || "unavailable"
+                ).toLowerCase();
+
+                const message =
+                    verification.Message ||
+                    "Online source verification is unavailable.";
+
+                let title = "⚠️ Online Source Verification Unavailable";
+                let style =
+                    "background: #fff3cd; color: #856404; border: 1px solid #ffeeba;";
+
+                if (status === "matches_found") {
+                    title = "⚠️ Similar Images Found Online";
+                    style =
+                        "background: #fff8e5; color: #795b12; border: 1px solid #f0d58c;";
+                } else if (status === "no_matches_found") {
+                    title = "No Online Matches Found";
+                    style =
+                        "background: #f0fff4; color: #22543d; border: 1px solid #b7dfc4;";
+                }
+
+                return `
+        <hr>
+        <h3>🌐 Image Source Verification</h3>
+
+        <div style="${style} padding: 12px 16px; border-radius: 8px; margin: 12px 0; overflow-wrap: anywhere;">
+            <strong>${title}</strong>
+            <p>${escapeHTML(message)}</p>
+        </div>
+    `;
+            })()}
+
+            ${(() => {
+                const crossCheck =
+                    aiAnalysis.Disaster_Cross_Check || {};
+
+                const status = String(
+                    crossCheck.Status || "unavailable"
+                ).toLowerCase();
+
+                const message =
+                    crossCheck.Message ||
+                    "Disaster cross-check information is unavailable.";
+
+                let title = "⚠️ Disaster Cross-Check Unavailable";
+                let style =
+                    "background: #fff3cd; color: #856404; border: 1px solid #ffeeba;";
+
+                if (status === "supporting_evidence") {
+                    title = "ℹ️ Supporting Disaster Evidence Found";
+                    style =
+                        "background: #f0fff4; color: #22543d; border: 1px solid #b7dfc4;";
+                } else if (status === "no_direct_correlation") {
+                    title = "⚠️ No Direct Disaster Correlation Found";
+                    style =
+                        "background: #fff8e5; color: #795b12; border: 1px solid #f0d58c;";
+                }
+
+                return `
+                    <hr>
+                    <h3>🌦️ Trusted Disaster & Weather Cross-Check</h3>
+
+                    <div style="${style} padding: 12px 16px; border-radius: 8px; margin: 12px 0; overflow-wrap: anywhere;">
+                        <strong>${title}</strong>
+                        <p>${escapeHTML(message)}</p>
+                        <p>
+                            <strong>Source:</strong>
+                            ${escapeHTML(crossCheck.Source || "Unavailable")}
+                        </p>
+                    </div>
+                `;
+            })()}
+
+
         `;
 
 
@@ -681,11 +800,9 @@ ${(() => {
 
 
         container.innerHTML = `
-
             <p style="color:red;">
                 Failed to load report details.
             </p>
-
         `;
     }
 }

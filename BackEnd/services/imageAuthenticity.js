@@ -1,5 +1,103 @@
 const sharp = require("sharp");
 
+
+/**
+ * Automated source verification helper.
+ * Gracefully handles unavailable online indices without breaking or making false claims.
+ */
+/**
+ * Searches publicly accessible images using SearchApi.
+ * Accepts a public image URL, never a local report file path.
+ */
+async function verifyImageSource(imageUrl) {
+    const unavailable = (message) => ({
+        status: "unavailable",
+        sourceMatched: false,
+        matchedSourceUrl: null,
+        matches: [],
+        message
+    });
+
+    try {
+        const apiKey = process.env.SEARCHAPI_API_KEY;
+
+        if (!apiKey) {
+            return unavailable("SearchApi API key is not configured.");
+        }
+
+        if (
+            typeof imageUrl !== "string" ||
+            !/^https:\/\//i.test(imageUrl)
+        ) {
+            return unavailable(
+                "A publicly accessible HTTPS image URL is required."
+            );
+        }
+
+        const params = new URLSearchParams({
+            engine: "google_reverse_image",
+            url: imageUrl
+        });
+
+        const response = await fetch(
+            `https://www.searchapi.org/api/v1/search?${params}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${apiKey}`
+                },
+                signal: AbortSignal.timeout(20000)
+            }
+        );
+
+        if (!response.ok) {
+            return unavailable(
+                `SearchApi request failed with HTTP ${response.status}.`
+            );
+        }
+
+        const data = await response.json();
+
+        const matches = (data.visual_matches || [])
+            .filter((item) => {
+                try {
+                    return (
+                        typeof item.link === "string" &&
+                        ["http:", "https:"].includes(
+                            new URL(item.link).protocol
+                        )
+                    );
+                } catch {
+                    return false;
+                }
+            })
+            .slice(0, 10)
+            .map((item) => ({
+                title: item.title || "Untitled source",
+                source: item.source || "Unknown",
+                url: item.link
+            }));
+
+        return {
+            status: matches.length > 0
+                ? "matches_found"
+                : "no_matches_found",
+            sourceMatched: matches.length > 0,
+            matchedSourceUrl: matches[0]?.url || null,
+            matches,
+            message: matches.length > 0
+                ? "Visually similar images were found online. Human review is required to determine whether they show the same image or incident."
+                : "No visual matches were returned. This does not prove that the image is original or authentic."
+        };
+
+    } catch (error) {
+        console.error("Source verification error:", error.message);
+
+        return unavailable(
+            "External source verification is temporarily unavailable."
+        );
+    }
+}
+
 async function analyzeImageAuthenticity(
     imagePath,
     generateReport
@@ -8,12 +106,22 @@ async function analyzeImageAuthenticity(
         const { generateReportSafely } = require("./gemini");
         generateReport = generateReportSafely;
     }
+
     const inconclusiveResult = (message) => ({
         status: "inconclusive",
         message,
         prediction: "UNCERTAIN",
         confidence: null,
-        manualReviewRequired: true
+        manualReviewRequired: true,
+
+
+        sourceVerification: {
+            status: "unavailable",
+            sourceMatched: false,
+            message:
+                "Online source verification was not performed. " +
+                "Visual screening alone cannot establish image provenance."
+        }
     });
 
     if (!imagePath) {
@@ -114,7 +222,12 @@ LIMITATION: Preliminary visual screening only; authenticity is unverified.
                     "This is a preliminary assessment, not proof of manipulation.",
                 prediction: "FAKE",
                 confidence: null,
-                manualReviewRequired: true
+                manualReviewRequired: true,
+                sourceVerification: {
+                    status: "suspicious_provenance",
+                    sourceMatched: false,
+                    message: "Image provenance could not be verified against external online databases. Preliminary visual indicators suggest potential artificial generation or tampering."
+                }
             };
         }
 
@@ -133,7 +246,12 @@ LIMITATION: Preliminary visual screening only; authenticity is unverified.
                 "this image as confirmed evidence.",
             prediction: "REAL",
             confidence: null,
-            manualReviewRequired: true
+            manualReviewRequired: true,
+            sourceVerification: {
+                status: "unverified_source",
+                sourceMatched: false,
+                message: "Automated online source verification is not yet available. The image has been visually screened but not cross-referenced against external web archives."
+            }
         };
     } catch (error) {
         console.error(
@@ -148,5 +266,6 @@ LIMITATION: Preliminary visual screening only; authenticity is unverified.
 }
 
 module.exports = {
+    verifyImageSource,
     analyzeImageAuthenticity
 };

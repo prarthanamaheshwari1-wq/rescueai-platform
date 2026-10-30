@@ -4,13 +4,59 @@ console.log("REPORTS.JS LOADED");
 const router = express.Router();
 const { sql } = require("../config/db");
 const { authenticateToken, authorizeRoles } = require("../middleware/auth");
+const { checkIncidentConsistency } = require("../services/incidentConsistency");
+const { checkLocationConsistency } = require("../services/locationConsistency");
 
 const upload = require("../middleware/upload");
 const fs = require("fs");
+const path = require("path");
 
 const { generateReportSafely } = require("../services/gemini");
 const { processDisasterImage } = require("../services/imageProcessor");
-const { analyzeImageAuthenticity } = require("../services/imageAuthenticity");
+const { analyzeImageAuthenticity, verifyImageSource } = require("../services/imageAuthenticity");
+const { checkImageDuplicate } = require("../services/imageDuplicateDetection");
+const { crossCheckDisasterSource } = require("../services/disasterCrossCheck");
+
+
+// ==========================================
+// BACKGROUND CHRONOLOGICAL BACKFILL FOR DUPLICATES
+// ==========================================
+async function runInitialDuplicateBackfill() {
+    try {
+        const request = new sql.Request();
+        const result = await request.query(`
+            SELECT Report_id, Photo_Path 
+            FROM Incident_Reports 
+            WHERE Photo_Path IS NOT NULL 
+              AND Report_id NOT IN (SELECT Report_id FROM dbo.Image_Duplicate_Checks)
+            ORDER BY Report_id ASC
+        `);
+
+        if (result.recordset.length === 0) return;
+
+        console.log(`[Duplicate Backfill] Processing ${result.recordset.length} historical reports...`);
+
+        for (const report of result.recordset) {
+            const possiblePath = fs.existsSync(report.Photo_Path)
+                ? report.Photo_Path
+                : path.join(__dirname, "..", report.Photo_Path);
+
+            if (fs.existsSync(possiblePath)) {
+                try {
+                    await checkImageDuplicate(possiblePath, report.Report_id);
+                } catch (err) {
+                    console.error(`[Duplicate Backfill] Failed for Report #${report.Report_id}:`, err.message);
+                }
+            }
+        }
+        console.log("[Duplicate Backfill] Completed successfully.");
+    } catch (err) {
+        console.error("[Duplicate Backfill Error]:", err.message);
+    }
+}
+
+// Trigger backfill shortly after server boots up
+setTimeout(runInitialDuplicateBackfill, 3000);
 
 // ==========================================
 // SAFE DELETE FILE (OneDrive & Windows EBUSY Safe)
@@ -149,6 +195,57 @@ router.post(
                 message: null,
                 manualReviewRequired: null
             };
+
+            let imageSourceVerification = {
+                status: "unavailable",
+                message:
+                    "Online reverse-image verification is unavailable because " +
+                    "the submitted image is stored privately. No external service " +
+                    "has received this image.",
+                matchedSourceUrl: null,
+                matches: []
+            };
+
+            // If a public image URL is explicitly provided for testing/cross-checking, 
+            // trigger SearchApi securely without exposing local private files.
+            if (req.body.imageUrl && typeof req.body.imageUrl === "string" && /^https:\/\//i.test(req.body.imageUrl)) {
+                try {
+                    console.log("[Image Source Verification] Checking public image URL:", req.body.imageUrl);
+                    imageSourceVerification = await verifyImageSource(req.body.imageUrl);
+                } catch (verifyErr) {
+                    console.error("[Image Source Verification Error]:", verifyErr.message);
+                    imageSourceVerification = {
+                        status: "unavailable",
+                        message: "External source verification timed out or failed.",
+                        matchedSourceUrl: null,
+                        matches: []
+                    };
+                }
+            }
+
+            // ==========================================
+            // TRUSTED DISASTER & WEATHER CROSS-CHECKING
+            // ==========================================
+
+            let disasterCrossCheck = {
+                status: "unavailable",
+                sourceName: "External Disaster & Weather Feeds",
+                sourceUrl: null,
+                matchedAlert: null,
+                message: "External cross-checking has not been performed.",
+                timestamp: new Date().toISOString()
+            };
+
+            try {
+                disasterCrossCheck = await crossCheckDisasterSource({
+                    category,
+                    locationName,
+                    latitude: parsedLatitude,
+                    longitude: parsedLongitude
+                });
+            } catch (crossCheckError) {
+                console.error("Disaster Cross-Check Integration Error:", crossCheckError.message);
+            }
 
             if (req.file) {
 
@@ -328,6 +425,34 @@ router.post(
 
             }
 
+
+            // ==========================================
+            // AUTOMATIC IMAGE DUPLICATE DETECTION
+            // ==========================================
+
+            let imageDuplicate = {
+                checkCompleted: false,
+                isPossibleDuplicate: false,
+                similarReportId: null,
+                hammingDistance: null,
+                checkFailed: false
+            };
+
+            try {
+                imageDuplicate = {
+                    ...imageDuplicate,
+                    ...await checkImageDuplicate(
+                        req.file.path,
+                        reportId
+                    )
+                };
+            } catch (duplicateError) {
+                // A duplicate-check failure must not block
+                // an otherwise valid emergency report.
+                imageDuplicate.checkFailed = true;
+
+                console.error("Image Duplicate Detection Error:", duplicateError.stack || duplicateError);
+            }
 
             // ==========================================
             // AI ANALYSIS DEFAULT VALUES
@@ -551,6 +676,38 @@ Do not return multiple alternative values.
                     "AI severity or priority could not be validated. Manual review is required.";
             }
 
+
+            // ==========================================
+            // INCIDENT AND LOCATION CONSISTENCY CHECK
+            // ==========================================
+
+
+            const incidentConsistency = checkIncidentConsistency({
+                category,
+                description,
+                locationName,
+                latitude: parsedLatitude,
+                longitude: parsedLongitude,
+                aiVisualFindings
+            });
+
+            const locationConsistency = await checkLocationConsistency({
+                locationName,
+                latitude: parsedLatitude,
+                longitude: parsedLongitude
+            });
+
+            if (!locationConsistency.checked || !locationConsistency.consistent) {
+                incidentConsistency.reviewRecommended = true;
+
+                incidentConsistency.warnings.push({
+                    type: "LOCATION_CONSISTENCY",
+                    message: locationConsistency.message
+                });
+            }
+
+
+
             if (classificationValid) {
                 const severityUpdateRequest = new sql.Request();
 
@@ -672,6 +829,48 @@ Do not return multiple alternative values.
                 imageAuthenticity.manualReviewRequired
             );
 
+            aiRequest.input(
+                "ImageSourceStatus",
+                sql.NVarChar(30),
+                imageSourceVerification.status
+            );
+
+            aiRequest.input(
+                "ImageSourceMessage",
+                sql.NVarChar(sql.MAX),
+                imageSourceVerification.message
+            );
+
+            aiRequest.input(
+                "ImageSourceMatchedURL",
+                sql.NVarChar(sql.MAX),
+                imageSourceVerification.matchedSourceUrl
+            );
+
+            aiRequest.input(
+                "ImageSourceMatches",
+                sql.NVarChar(sql.MAX),
+                JSON.stringify(imageSourceVerification.matches)
+            );
+
+            aiRequest.input(
+                "DisasterCrossCheckStatus",
+                sql.NVarChar(30),
+                disasterCrossCheck.status
+            );
+
+            aiRequest.input(
+                "DisasterCrossCheckMessage",
+                sql.NVarChar(sql.MAX),
+                disasterCrossCheck.message
+            );
+
+            aiRequest.input(
+                "DisasterCrossCheckSource",
+                sql.NVarChar(255),
+                disasterCrossCheck.sourceName
+            );
+
 
             await aiRequest.query(`
 
@@ -688,7 +887,14 @@ Do not return multiple alternative values.
                     Image_Authenticity_Status,
                     Image_Authenticity_Prediction,
                     Image_Authenticity_Reason,
-                    Image_Authenticity_Manual_Review
+                    Image_Authenticity_Manual_Review,
+                    Image_Source_Status,
+                    Image_Source_Message,
+                    Image_Source_Matched_URL,
+                    Image_Source_Matches,
+                    Disaster_Cross_Check_Status,
+                    Disaster_Cross_Check_Message,
+                    Disaster_Cross_Check_Source
                 )
 
                 VALUES
@@ -704,7 +910,14 @@ Do not return multiple alternative values.
                     @ImageAuthenticityStatus,
                     @ImageAuthenticityPrediction,
                     @ImageAuthenticityReason,
-                    @ImageAuthenticityManualReview
+                    @ImageAuthenticityManualReview,
+                    @ImageSourceStatus,
+                    @ImageSourceMessage,
+                    @ImageSourceMatchedURL,
+                    @ImageSourceMatches,
+                    @DisasterCrossCheckStatus,
+                    @DisasterCrossCheckMessage,
+                    @DisasterCrossCheckSource
                 )
 
             `);
@@ -729,6 +942,7 @@ Do not return multiple alternative values.
             // SUCCESS RESPONSE
             // ==========================================
 
+
             return res.status(201).json({
 
                 message:
@@ -738,9 +952,18 @@ Do not return multiple alternative values.
                     reportId,
 
                 photoUploaded:
-                    !!req.file
+                    !!req.file,
+
+                incidentConsistency: {
+                    reviewRecommended:
+                        incidentConsistency.reviewRecommended,
+
+                    warnings:
+                        incidentConsistency.warnings
+                }
 
             });
+
 
         }
         catch (error) {
@@ -1429,6 +1652,10 @@ router.get(
                         IR.Status,
                         IR.Created_At,
                         IR.Photo_Path,
+                        DC.Report_id AS DuplicateCheckReportId,
+                        DC.Similar_Report_id,
+                        DC.Hamming_Distance,
+                        DC.Is_Possible_Duplicate,
 
                         AI.AI_Category,
                         AI.AI_Severity,
@@ -1441,12 +1668,22 @@ router.get(
                         AI.Image_Authenticity_Status,
                         AI.Image_Authenticity_Prediction,
                         AI.Image_Authenticity_Reason,
-                        AI.Image_Authenticity_Manual_Review
+                        AI.Image_Authenticity_Manual_Review,
+                        AI.Image_Source_Status,
+                        AI.Image_Source_Message,
+                        AI.Image_Source_Matched_URL,
+                        AI.Image_Source_Matches,
+                        AI.Disaster_Cross_Check_Status,
+                        AI.Disaster_Cross_Check_Message,
+                        AI.Disaster_Cross_Check_Source
 
                     FROM Incident_Reports IR
 
                     LEFT JOIN AI_Analysis AI
                         ON IR.Report_id = AI.Report_id
+
+                    LEFT JOIN dbo.Image_Duplicate_Checks DC
+                        ON IR.Report_id = DC.Report_id
 
                     WHERE IR.Report_id = @ReportId
 
@@ -1470,7 +1707,43 @@ router.get(
             const firstRow =
                 reportResult.recordset[0];
 
+            // ==========================================
+            // INCIDENT CONSISTENCY CHECK
+            // ==========================================
 
+            const incidentConsistency = checkIncidentConsistency({
+                category: firstRow.Category,
+                description: firstRow.Description,
+                locationName: firstRow.Location_Name,
+                latitude: firstRow.Latitude,
+                longitude: firstRow.Longitude,
+                aiVisualFindings: firstRow.AI_Visual_Findings
+            });
+
+            const locationConsistency = await checkLocationConsistency({
+                locationName: firstRow.Location_Name,
+                latitude: firstRow.Latitude,
+                longitude: firstRow.Longitude
+            });
+
+            if (!locationConsistency.checked || !locationConsistency.consistent) {
+                incidentConsistency.reviewRecommended = true;
+
+                incidentConsistency.warnings.push({
+                    type: "LOCATION_CONSISTENCY",
+                    message: locationConsistency.message
+                });
+            }
+
+            // ==========================================
+            // BACKFILL DUPLICATE CHECK FOR OLDER REPORTS
+            // ==========================================
+            const duplicateCheckData = {
+                DuplicateCheckReportId: firstRow.DuplicateCheckReportId,
+                Similar_Report_id: firstRow.Similar_Report_id,
+                Hamming_Distance: firstRow.Hamming_Distance,
+                Is_Possible_Duplicate: firstRow.Is_Possible_Duplicate
+            };
 
             // ==========================================
             // CHECK AI ANALYSIS
@@ -1528,6 +1801,23 @@ router.get(
                 Photo_Path:
                     firstRow.Photo_Path,
 
+                IncidentConsistency: {
+                    ReviewRecommended:
+                        incidentConsistency.reviewRecommended,
+                    Warnings:
+                        incidentConsistency.warnings
+                },
+
+                PossibleDuplicate: {
+                    CheckCompleted:
+                        duplicateCheckData.DuplicateCheckReportId != null,
+                    IsPossibleDuplicate:
+                        Boolean(duplicateCheckData.Is_Possible_Duplicate),
+                    SimilarReportId:
+                        duplicateCheckData.Similar_Report_id ?? null,
+                    HammingDistance:
+                        duplicateCheckData.Hamming_Distance ?? null
+                },
 
                 AI_Analysis: hasAIAnalysis
                     ? {
@@ -1547,6 +1837,22 @@ router.get(
                             Confidence: null,
                             ManualReviewRequired:
                                 firstRow.Image_Authenticity_Manual_Review
+                        },
+
+                        Image_Source_Verification: {
+                            Status: firstRow.Image_Source_Status,
+                            Message: firstRow.Image_Source_Message,
+                            MatchedURL: firstRow.Image_Source_Matched_URL,
+                            Matches: firstRow.Image_Source_Matches
+                                ? JSON.parse(firstRow.Image_Source_Matches)
+                                : []
+                        },
+
+                        
+                        Disaster_Cross_Check: {
+                            Status: firstRow.Disaster_Cross_Check_Status,
+                            Message: firstRow.Disaster_Cross_Check_Message,
+                            Source: firstRow.Disaster_Cross_Check_Source
                         }
                     }
                     : null,
@@ -2320,65 +2626,35 @@ router.post(
     authenticateToken,
     authorizeRoles("authority"),
     async (req, res) => {
+        const reportId = Number(req.params.reportId);
+        const volunteerId = Number(req.body?.volunteerId);
+
+        // ==========================================
+        // VALIDATE IDs
+        // ==========================================
+
+        if (
+            !Number.isInteger(reportId) ||
+            reportId <= 0 ||
+            !Number.isInteger(volunteerId) ||
+            volunteerId <= 0
+        ) {
+            return res.status(400).json({
+                message: "Valid report ID and volunteer ID are required."
+            });
+        }
+
+        const transaction = new sql.Transaction();
 
         try {
-
-            const reportId =
-                Number(req.params.reportId);
-
-
-            const volunteerId =
-                Number(req.body.volunteerId);
-
-
-            // ==========================================
-            // VALIDATE IDs
-            // ==========================================
-
-            if (
-                !Number.isInteger(reportId) ||
-                reportId <= 0
-            ) {
-
-                return res.status(400).json({
-
-                    message:
-                        "Invalid report ID."
-
-                });
-
-            }
-
-
-            if (
-                !Number.isInteger(volunteerId) ||
-                volunteerId <= 0
-            ) {
-
-                return res.status(400).json({
-
-                    message:
-                        "Invalid volunteer ID."
-
-                });
-
-            }
-
+            await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
 
             // ==========================================
             // CHECK REPORT
             // ==========================================
 
-            const reportRequest =
-                new sql.Request();
-
-
-            reportRequest.input(
-                "ReportId",
-                sql.Int,
-                reportId
-            );
-
+            const reportRequest = new sql.Request(transaction);
+            reportRequest.input("ReportId", sql.Int, reportId);
 
             const reportResult = await reportRequest.query(`
                 SELECT Report_id, Status
@@ -2388,7 +2664,6 @@ router.post(
 
             if (reportResult.recordset.length === 0) {
                 await transaction.rollback();
-
                 return res.status(404).json({
                     message: "Report not found."
                 });
@@ -2400,268 +2675,156 @@ router.post(
 
             if (reportStatus === "rejected" || reportStatus === "resolved") {
                 await transaction.rollback();
-
                 return res.status(409).json({
-                    message: "Resources cannot be assigned to a rejected or resolved report."
+                    message: "Volunteers cannot be assigned to a rejected or resolved report."
                 });
             }
 
-
             // ==========================================
-            // CHECK EXISTING ACTIVE ASSIGNMENT
+            // CHECK EXISTING ACTIVE ASSIGNMENT FOR THIS REPORT
             // ==========================================
 
-            const checkRequest =
-                new sql.Request();
+            const checkRequest = new sql.Request(transaction);
+            checkRequest.input("ReportId", sql.Int, reportId);
+            checkRequest.input("VolunteerId", sql.Int, volunteerId);
 
+            const existingAssignment = await checkRequest.query(`
+                SELECT Assignment_id
+                FROM Resource_Assignments WITH (UPDLOCK, HOLDLOCK) -- or Volunteer_Assignments
+                WHERE Report_id = @ReportId
+                  AND Volunteer_id = @VolunteerId
+                  AND LOWER(LTRIM(RTRIM(Status))) = 'active'
+            `).catch(() => ({ recordset: [] })); // Fallback if table name mismatch
 
-            checkRequest.input(
-                "ReportId",
-                sql.Int,
-                reportId
-            );
+            const checkVolRequest = new sql.Request(transaction);
+            checkVolRequest.input("ReportId", sql.Int, reportId);
+            checkVolRequest.input("VolunteerId", sql.Int, volunteerId);
 
+            const existingVolAssignment = await checkVolRequest.query(`
+                SELECT Assignment_id
+                FROM Volunteer_Assignments WITH (UPDLOCK, HOLDLOCK)
+                WHERE Report_id = @ReportId
+                  AND Volunteer_id = @VolunteerId
+                  AND LOWER(LTRIM(RTRIM(Status))) = 'active'
+            `);
 
-            const existingAssignment =
-                await checkRequest.query(`
-
-                    SELECT
-                        Assignment_id
-
-                    FROM Volunteer_Assignments
-
-                    WHERE Report_id =
-                          @ReportId
-
-                    AND Status =
-                        'Active'
-
-                `);
-
-
-            if (
-                existingAssignment.recordset.length > 0
-            ) {
-
+            if (existingVolAssignment.recordset.length > 0) {
+                await transaction.rollback();
                 return res.status(400).json({
-
-                    message:
-                        "Volunteer already assigned to this report."
-
+                    message: "Volunteer already actively assigned to this report."
                 });
-
             }
 
-
             // ==========================================
-            // CHECK VOLUNTEER
+            // CHECK VOLUNTEER & AVAILABILITY
             // ==========================================
 
-            const volunteerRequest =
-                new sql.Request();
+            const volunteerRequest = new sql.Request(transaction);
+            volunteerRequest.input("VolunteerId", sql.Int, volunteerId);
 
+            const volunteerResult = await volunteerRequest.query(`
+                SELECT Volunteer_id, Availability
+                FROM Volunteers WITH (UPDLOCK, HOLDLOCK)
+                WHERE Volunteer_id = @VolunteerId
+            `);
 
-            volunteerRequest.input(
-                "VolunteerId",
-                sql.Int,
-                volunteerId
-            );
-
-
-            const volunteerResult =
-                await volunteerRequest.query(`
-
-                    SELECT
-
-                        Volunteer_id,
-                        Availability
-
-                    FROM Volunteers
-
-                    WHERE Volunteer_id =
-                          @VolunteerId
-
-                `);
-
-
-            if (
-                volunteerResult.recordset.length === 0
-            ) {
-
+            if (volunteerResult.recordset.length === 0) {
+                await transaction.rollback();
                 return res.status(404).json({
-
-                    message:
-                        "Volunteer not found."
-
+                    message: "Volunteer not found."
                 });
-
             }
 
+            const volunteer = volunteerResult.recordset[0];
+            const volAvailability = String(volunteer.Availability || "").trim().toLowerCase();
 
-            const volunteer =
-                volunteerResult.recordset[0];
-
-
-            // ==========================================
-            // CHECK VOLUNTEER AVAILABILITY
-            // ==========================================
-
-            if (
-                volunteer.Availability &&
-                volunteer.Availability.toLowerCase() !==
-                "available"
-            ) {
-
+            if (volAvailability !== "available") {
+                await transaction.rollback();
                 return res.status(400).json({
-
-                    message:
-                        "This volunteer is currently unavailable."
-
+                    message: "This volunteer is currently unavailable."
                 });
-
             }
 
-
             // ==========================================
-            // CHECK ACTIVE ASSIGNMENT
+            // CHECK IF VOLUNTEER IS ASSIGNED TO ANOTHER REPORT
             // ==========================================
 
-            const activeAssignmentRequest =
-                new sql.Request();
+            const activeAssignmentRequest = new sql.Request(transaction);
+            activeAssignmentRequest.input("VolunteerId", sql.Int, volunteerId);
 
+            const activeAssignmentResult = await activeAssignmentRequest.query(`
+                SELECT Assignment_id
+                FROM Volunteer_Assignments WITH (UPDLOCK, HOLDLOCK)
+                WHERE Volunteer_id = @VolunteerId
+                  AND LOWER(LTRIM(RTRIM(Status))) = 'active'
+            `);
 
-            activeAssignmentRequest.input(
-                "VolunteerId",
-                sql.Int,
-                volunteerId
-            );
-
-
-            const activeAssignmentResult =
-                await activeAssignmentRequest.query(`
-
-                    SELECT
-                        Assignment_id
-
-                    FROM Volunteer_Assignments
-
-                    WHERE Volunteer_id =
-                          @VolunteerId
-
-                    AND Status =
-                        'Active'
-
-                `);
-
-
-            if (
-                activeAssignmentResult.recordset.length > 0
-            ) {
-
+            if (activeAssignmentResult.recordset.length > 0) {
+                await transaction.rollback();
                 return res.status(400).json({
-
-                    message:
-                        "This volunteer is currently assigned to another active report."
-
+                    message: "This volunteer is currently assigned to another active report."
                 });
-
             }
-
 
             // ==========================================
             // CREATE VOLUNTEER ASSIGNMENT
             // ==========================================
 
-            const request =
-                new sql.Request();
+            const insertRequest = new sql.Request(transaction);
+            insertRequest.input("ReportId", sql.Int, reportId);
+            insertRequest.input("VolunteerId", sql.Int, volunteerId);
 
-
-            request.input(
-                "ReportId",
-                sql.Int,
-                reportId
-            );
-
-
-            request.input(
-                "VolunteerId",
-                sql.Int,
-                volunteerId
-            );
-
-
-            await request.query(`
-
+            await insertRequest.query(`
                 INSERT INTO Volunteer_Assignments
                 (
                     Report_id,
                     Volunteer_id,
                     Status
                 )
-
                 VALUES
                 (
                     @ReportId,
                     @VolunteerId,
                     'Active'
                 )
-
             `);
-
 
             // ==========================================
             // MARK VOLUNTEER BUSY
             // ==========================================
 
-            const updateRequest =
-                new sql.Request();
-
-
-            updateRequest.input(
-                "VolunteerId",
-                sql.Int,
-                volunteerId
-            );
-
+            const updateRequest = new sql.Request(transaction);
+            updateRequest.input("VolunteerId", sql.Int, volunteerId);
 
             await updateRequest.query(`
-
                 UPDATE Volunteers
-
-                SET Availability =
-                    'Busy'
-
-                WHERE Volunteer_id =
-                      @VolunteerId
-
+                SET Availability = 'Busy'
+                WHERE Volunteer_id = @VolunteerId
             `);
 
+            await transaction.commit();
 
-            return res.json({
-
-                message:
-                    "Volunteer assigned successfully"
-
+            return res.status(200).json({
+                message: "Volunteer assigned successfully",
+                reportId,
+                volunteerId
             });
 
-        }
-        catch (error) {
+        } catch (error) {
+            try {
+                if (transaction._aborted !== true) {
+                    await transaction.rollback();
+                }
+            } catch (rollbackError) {
+                console.error("Volunteer assignment rollback failed:", rollbackError.message);
+            }
 
-            console.error(
-                "Volunteer Assignment Error:",
-                error
-            );
-
+            console.error("Volunteer Assignment Error:", error);
 
             return res.status(500).json({
-
-                message:
-                    "Server Error"
-
+                message: "Server Error during volunteer assignment."
             });
-
         }
-
     }
 );
 

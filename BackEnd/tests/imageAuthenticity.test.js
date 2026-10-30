@@ -7,7 +7,8 @@ const os = require("node:os");
 const path = require("node:path");
 
 const {
-    analyzeImageAuthenticity
+    analyzeImageAuthenticity,
+    verifyImageSource
 } = require("../services/imageAuthenticity");
 
 let imagePath;
@@ -113,4 +114,135 @@ test("Missing image path remains inconclusive", async () => {
     assert.equal(result.prediction, "UNCERTAIN");
     assert.equal(result.status, "inconclusive");
     assert.equal(result.manualReviewRequired, true);
+});
+
+test("Missing SearchApi key returns unavailable", async () => {
+    const originalKey = process.env.SEARCHAPI_API_KEY;
+    delete process.env.SEARCHAPI_API_KEY;
+
+    try {
+        const result = await verifyImageSource(
+            "https://example.com/image.jpg"
+        );
+
+        assert.equal(result.status, "unavailable");
+        assert.equal(result.sourceMatched, false);
+    } finally {
+        if (originalKey === undefined) {
+            delete process.env.SEARCHAPI_API_KEY;
+        } else {
+            process.env.SEARCHAPI_API_KEY = originalKey;
+        }
+    }
+});
+
+test("Invalid image URL returns unavailable", async () => {
+    const result = await verifyImageSource(
+        "C:/uploads/image.jpg"
+    );
+
+    assert.equal(result.status, "unavailable");
+    assert.equal(result.sourceMatched, false);
+});
+
+test("Reverse-image matches are returned correctly", async () => {
+    const originalKey = process.env.SEARCHAPI_API_KEY;
+    const originalFetch = global.fetch;
+
+    process.env.SEARCHAPI_API_KEY = "test-api-key";
+
+    global.fetch = async () => ({
+        ok: true,
+        json: async () => ({
+            visual_matches: [
+                {
+                    title: "Disaster image source",
+                    source: "Example News",
+                    link: "https://example.com/source"
+                }
+            ]
+        })
+    });
+
+    try {
+        const result = await verifyImageSource(
+            "https://example.com/image.jpg"
+        );
+
+        assert.equal(result.status, "matches_found");
+        assert.equal(result.sourceMatched, true);
+        assert.equal(
+            result.matchedSourceUrl,
+            "https://example.com/source"
+        );
+        assert.equal(result.matches.length, 1);
+    } finally {
+        global.fetch = originalFetch;
+
+        if (originalKey === undefined) {
+            delete process.env.SEARCHAPI_API_KEY;
+        } else {
+            process.env.SEARCHAPI_API_KEY = originalKey;
+        }
+    }
+});
+
+test("No reverse-image matches returns no_matches_found", async () => {
+    const originalKey = process.env.SEARCHAPI_API_KEY;
+    const originalFetch = global.fetch;
+
+    process.env.SEARCHAPI_API_KEY = "test-api-key";
+
+    global.fetch = async () => ({
+        ok: true,
+        json: async () => ({
+            visual_matches: []
+        })
+    });
+
+    try {
+        const result = await verifyImageSource(
+            "https://example.com/image.jpg"
+        );
+
+        assert.equal(result.status, "no_matches_found");
+        assert.equal(result.sourceMatched, false);
+        assert.equal(result.matches.length, 0);
+    } finally {
+        global.fetch = originalFetch;
+
+        if (originalKey === undefined) {
+            delete process.env.SEARCHAPI_API_KEY;
+        } else {
+            process.env.SEARCHAPI_API_KEY = originalKey;
+        }
+    }
+});
+
+test("SearchApi failure returns unavailable without throwing", async () => {
+    const originalKey = process.env.SEARCHAPI_API_KEY;
+    const originalFetch = global.fetch;
+
+    process.env.SEARCHAPI_API_KEY = "test-api-key";
+
+    global.fetch = async () => {
+        throw new Error("SearchApi unavailable");
+    };
+
+    try {
+        const result = await verifyImageSource(
+            "https://example.com/image.jpg"
+        );
+
+        assert.equal(result.status, "unavailable");
+        assert.equal(result.sourceMatched, false);
+    } finally {
+        global.fetch = originalFetch;
+
+        if (originalKey === undefined) {
+            delete process.env.SEARCHAPI_API_KEY;
+        } else {
+            process.env.SEARCHAPI_API_KEY = originalKey;
+        }
+    }
 });

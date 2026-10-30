@@ -111,60 +111,172 @@ locationButton.addEventListener("click", (e) => {
     );
 });
 
-// PHOTO SELECTION
-photoInput.addEventListener("change", () => {
-    const file = photoInput.files[0];
-    if (!file) return;
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-        alert("Please select a JPG, PNG or WEBP image.");
-        photoInput.value = "";
+// CAMERA-ONLY PHOTO CAPTURE
+
+const startCameraButton = document.getElementById("startCamera");
+const cameraPanel = document.getElementById("cameraPanel");
+const cameraVideo = document.getElementById("cameraVideo");
+const capturePhotoButton = document.getElementById("capturePhoto");
+const cancelCameraButton = document.getElementById("cancelCamera");
+
+let cameraStream = null;
+
+async function startCamera() {
+    try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            throw new Error("Camera access is unavailable.");
+        }
+
+        startCameraButton.disabled = true;
+        startCameraButton.textContent = "Opening Camera...";
+
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+            audio: false
+        });
+
+        cameraVideo.srcObject = cameraStream;
+        await cameraVideo.play();
+
+        cameraPanel.classList.remove("hidden");
+        uploadArea.classList.add("hidden");
+
+    } catch (error) {
+        console.error("Camera Error:", error);
+
+        alert(
+            error.name === "NotAllowedError"
+                ? "Camera permission was denied. Allow camera access in your browser settings and try again."
+                : "Unable to open the camera. Use localhost or HTTPS and check camera availability."
+        );
+
+        stopCamera();
+
+    } finally {
+        startCameraButton.disabled = false;
+        startCameraButton.textContent = "Open Camera";
+    }
+}
+
+function stopCamera() {
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+
+    cameraVideo.srcObject = null;
+    cameraPanel.classList.add("hidden");
+}
+
+startCameraButton.addEventListener("click", startCamera);
+
+capturePhotoButton.addEventListener("click", async () => {
+    if (
+        !cameraStream ||
+        !cameraVideo.videoWidth ||
+        !cameraVideo.videoHeight
+    ) {
+        alert("The camera is not ready. Please try again.");
         return;
     }
 
-    const maxSize = 20 * 1024 * 1024;
-    if (file.size > maxSize) {
-        alert("Photo size must be less than 20 MB.");
-        photoInput.value = "";
-        return;
-    }
+    capturePhotoButton.disabled = true;
 
-    const reader = new FileReader();
-    reader.onload = function (event) {
-        previewImage.src = event.target.result;
+    try {
+        const canvas = document.createElement("canvas");
+        canvas.width = cameraVideo.videoWidth;
+        canvas.height = cameraVideo.videoHeight;
+
+        const context = canvas.getContext("2d");
+
+        if (!context) {
+            throw new Error("Unable to process the camera image.");
+        }
+
+        context.drawImage(
+            cameraVideo,
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+        const blob = await new Promise((resolve, reject) => {
+            canvas.toBlob(
+                image => image
+                    ? resolve(image)
+                    : reject(new Error("Photo capture failed.")),
+                "image/jpeg",
+                0.90
+            );
+        });
+
+        const maxSize = 20 * 1024 * 1024;
+
+        if (blob.size > maxSize) {
+            alert("Photo size must be less than 20 MB.");
+            return;
+        }
+
+        const capturedFile = new File(
+            [blob],
+            `emergency-${Date.now()}.jpg`,
+            { type: "image/jpeg" }
+        );
+
+        const transfer = new DataTransfer();
+        transfer.items.add(capturedFile);
+        photoInput.files = transfer.files;
+
+        if (previewImage.src.startsWith("blob:")) {
+            URL.revokeObjectURL(previewImage.src);
+        }
+
+        previewImage.src = URL.createObjectURL(capturedFile);
+        photoName.textContent = capturedFile.name;
+        photoSize.textContent = formatFileSize(capturedFile.size);
+
         photoPreview.classList.remove("hidden");
         uploadArea.classList.add("hidden");
-        photoName.innerText = file.name;
-        photoSize.innerText = formatFileSize(file.size);
-    };
-    reader.readAsDataURL(file);
-});
 
-// DRAG AND DROP HANDLING
-["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
-    uploadArea.addEventListener(eventName, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-    }, false);
-});
+        stopCamera();
 
-uploadArea.addEventListener("drop", (e) => {
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-        photoInput.files = files;
-        photoInput.dispatchEvent(new Event("change"));
+    } catch (error) {
+        console.error("Photo Capture Error:", error);
+        alert("Unable to capture the photo. Please try again.");
+
+    } finally {
+        capturePhotoButton.disabled = false;
     }
 });
+
+cancelCameraButton.addEventListener("click", () => {
+    stopCamera();
+    uploadArea.classList.remove("hidden");
+});
+
+window.addEventListener("beforeunload", stopCamera);
+
 
 // REMOVE PHOTO
 removePhoto.addEventListener("click", (e) => {
     e.preventDefault();
+
     photoInput.value = "";
+
+    if (previewImage.src.startsWith("blob:")) {
+        URL.revokeObjectURL(previewImage.src);
+    }
+
     previewImage.src = "";
+    photoName.textContent = "Photo selected";
+    photoSize.textContent = "";
+
     photoPreview.classList.add("hidden");
     uploadArea.classList.remove("hidden");
 });
+
 
 // FILE SIZE FORMAT
 function formatFileSize(bytes) {
@@ -223,7 +335,26 @@ emergencyForm.addEventListener("submit", async function (event) {
         console.log("Server Response:", data);
 
         if (response.ok) {
-            showResult("Emergency report submitted successfully.", "success");
+            const consistencyWarnings =
+                data.incidentConsistency?.warnings || [];
+
+            if (consistencyWarnings.length > 0) {
+                const warningMessages = consistencyWarnings
+                    .map(warning => warning.message)
+                    .join("\n");
+
+                showResult(
+                    "Emergency report submitted successfully, but authority review is recommended.\n\n" +
+                    warningMessages,
+                    "error"
+                );
+            } else {
+                showResult(
+                    "Emergency report submitted successfully. No basic consistency warnings were found.",
+                    "success"
+                );
+            }
+
             const reportId = data.reportId;
 
             setTimeout(() => {

@@ -237,27 +237,45 @@
                     </div>
 
 
-                    <label for="photo" class="upload-area" id="uploadArea">
+
+                    <div class="upload-area" id="uploadArea">
 
                         <div class="upload-icon">
                             📷
                         </div>
 
                         <h4>
-                            Choose an emergency photo
+                            Capture an emergency photo
                         </h4>
 
                         <p>
-                            JPG, PNG or WEBP • Maximum 20 MB
+                            Use your device camera to photograph the incident.
                         </p>
 
-                        <span class="choose-button">
-                            Choose Photo
-                        </span>
+                        <button type="button" id="startCamera" class="choose-button">
+                            Open Camera
+                        </button>
 
-                        <input type="file" id="photo" accept="image/jpeg,image/png,image/jpg,image/webp" hidden>
+                        <input type="file" id="photo" accept="image/jpeg,image/png,image/webp" hidden>
 
-                    </label>
+                    </div>
+
+                    <div id="cameraPanel" class="hidden">
+
+                        <video id="cameraVideo" autoplay playsinline muted style="width:100%;max-width:500px;"></video>
+
+                        <div>
+                            <button type="button" id="capturePhoto" class="choose-button">
+                                Capture Photo
+                            </button>
+
+                            <button type="button" id="cancelCamera" class="remove-button">
+                                Cancel
+                            </button>
+                        </div>
+
+                    </div>
+
 
 
                     <div id="photoPreview" class="photo-preview hidden">
