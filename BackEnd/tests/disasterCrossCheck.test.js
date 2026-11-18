@@ -161,7 +161,7 @@ test("matching high temperature supports a heat incident", async () => {
     assert.match(result.message, /42°C/);
 });
 
-test("database alert query failure does not crash weather cross-check", async () => {
+test("database alert query failure returns unavailable", async () => {
     sql.Request.prototype.query = async () => {
         throw new Error("Database unavailable");
     };
@@ -173,5 +173,6 @@ test("database alert query failure does not crash weather cross-check", async ()
         longitude: 79.430
     });
 
-    assert.equal(result.status, "no_direct_correlation");
+    assert.equal(result.status, "unavailable");
+    assert.match(result.message, /temporarily unavailable/i);
 });

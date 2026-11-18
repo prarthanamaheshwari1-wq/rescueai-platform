@@ -92,7 +92,7 @@ async function crossCheckDisasterSource({
                 WHERE LOWER(Location_Name)
                     LIKE '%' + LOWER(@LocationName) + '%'
                   AND UPPER(Status) = 'ACTIVE'
-            `).catch(() => ({ recordset: [] }));
+            `);
 
             activeAlerts = dbAlerts.recordset || [];
         }
