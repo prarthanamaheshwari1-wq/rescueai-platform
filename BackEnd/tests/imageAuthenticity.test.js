@@ -43,13 +43,90 @@ test("REAL verdict requires manual review", async () => {
     const result = await analyzeImageAuthenticity(
         imagePath,
         async () => ({
-            text: "VERDICT: REAL\nREASON: No strong visual indicators.\nLIMITATION: Preliminary screening only."
+            text: "VERDICT: REAL\nREASON: No strong visual indicators.\nSCREEN_REPHOTO: YES\nSCREEN_REASON: Visible display pixels and screen reflections detected."
         })
     );
 
     assert.equal(result.prediction, "REAL");
     assert.equal(result.status, "no_strong_ai_indicators");
     assert.equal(result.manualReviewRequired, true);
+    assert.equal(
+        result.screenRephoto.prediction,
+        "YES"
+    );
+
+    assert.equal(
+        result.screenRephoto.status,
+        "possible_screen_rephotograph"
+    );
+
+    assert.equal(
+        result.screenRephoto.manualReviewRequired,
+        true
+    );
+});
+
+test("Screen rephotograph is not detected when no indicators exist", async () => {
+    const result = await analyzeImageAuthenticity(
+        imagePath,
+        async () => ({
+            text: "VERDICT: REAL\nREASON: No strong visual indicators.\nSCREEN_REPHOTO: NO\nSCREEN_REASON: No visible screen-related indicators."
+        })
+    );
+
+    assert.equal(result.screenRephoto.prediction, "NO");
+    assert.equal(
+        result.screenRephoto.status,
+        "no_screen_indicators"
+    );
+    assert.equal(
+        result.screenRephoto.manualReviewRequired,
+        true
+    );
+});
+
+test("Uncertain screen rephotograph assessment remains inconclusive", async () => {
+    const result = await analyzeImageAuthenticity(
+        imagePath,
+        async () => ({
+            text: "VERDICT: REAL\nREASON: No strong visual indicators.\nSCREEN_REPHOTO: UNCERTAIN\nSCREEN_REASON: Visual evidence is insufficient."
+        })
+    );
+
+    assert.equal(
+        result.screenRephoto.prediction,
+        "UNCERTAIN"
+    );
+    assert.equal(
+        result.screenRephoto.status,
+        "inconclusive"
+    );
+    assert.equal(
+        result.screenRephoto.manualReviewRequired,
+        true
+    );
+});
+
+test("Missing screen rephotograph fields default to UNCERTAIN", async () => {
+    const result = await analyzeImageAuthenticity(
+        imagePath,
+        async () => ({
+            text: "VERDICT: REAL\nREASON: No strong visual indicators."
+        })
+    );
+
+    assert.equal(
+        result.screenRephoto.prediction,
+        "UNCERTAIN"
+    );
+    assert.equal(
+        result.screenRephoto.status,
+        "inconclusive"
+    );
+    assert.equal(
+        result.screenRephoto.manualReviewRequired,
+        true
+    );
 });
 
 test("FAKE verdict is flagged for manual review", async () => {

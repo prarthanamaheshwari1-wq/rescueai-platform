@@ -1,3 +1,4 @@
+const { redisClient } = require("../config/redis");
 
 async function checkLocationConsistency({
     locationName,
@@ -24,33 +25,56 @@ async function checkLocationConsistency({
         };
     }
 
+    const cacheKey = `location-consistency:${lat.toFixed(4)}:${lon.toFixed(4)}`;
+
     try {
-        const url = new URL(
-            "https://nominatim.openstreetmap.org/reverse"
-        );
+        let data = null;
 
-        url.search = new URLSearchParams({
-            format: "jsonv2",
-            lat: String(lat),
-            lon: String(lon),
-            zoom: "10",
-            addressdetails: "1"
-        }).toString();
+        if (redisClient.isReady) {
+            const cachedResult = await redisClient.get(cacheKey);
 
-        const response = await fetch(url, {
-            headers: {
-                "User-Agent": "RescueAI-DisasterResponse/1.0"
-            },
-            signal: AbortSignal.timeout(5000)
-        });
-
-        if (!response.ok) {
-            throw new Error(
-                `Geocoding service returned ${response.status}`
-            );
+            if (cachedResult) {
+                data = JSON.parse(cachedResult);
+            }
         }
 
-        const data = await response.json();
+        if (!data) {
+            const url = new URL(
+                "https://nominatim.openstreetmap.org/reverse"
+            );
+
+            url.search = new URLSearchParams({
+                format: "jsonv2",
+                lat: String(lat),
+                lon: String(lon),
+                zoom: "10",
+                addressdetails: "1"
+            }).toString();
+
+            const response = await fetch(url, {
+                headers: {
+                    "User-Agent": "RescueAI-DisasterResponse/1.0"
+                },
+                signal: AbortSignal.timeout(5000)
+            });
+
+            if (!response.ok) {
+                throw new Error(
+                    `Geocoding service returned ${response.status}`
+                );
+            }
+
+            data = await response.json();
+
+            if (redisClient.isReady) {
+                await redisClient.setEx(
+                    cacheKey,
+                    86400,
+                    JSON.stringify(data)
+                );
+            }
+        }
+
         const address = data.address || {};
 
         const knownLocationParts = [

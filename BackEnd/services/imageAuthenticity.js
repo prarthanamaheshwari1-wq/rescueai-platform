@@ -9,10 +9,55 @@ const sharp = require("sharp");
  * Searches publicly accessible images using SearchApi.
  * Accepts a public image URL, never a local report file path.
  */
+const SOCIAL_NETWORK_DOMAINS = [
+    "facebook.com",
+    "fb.com",
+    "instagram.com",
+    "x.com",
+    "twitter.com",
+    "reddit.com",
+    "youtube.com",
+    "youtu.be",
+    "tiktok.com",
+    "threads.net",
+    "linkedin.com",
+    "t.me",
+    "telegram.me",
+    "pinterest.com"
+];
+
+
+function matchSocialNetworkingSite(targetUrl) {
+    try {
+        const parsed = new URL(targetUrl);
+
+        if (!["http:", "https:"].includes(parsed.protocol)) {
+            return null;
+        }
+
+        const host = parsed.hostname
+            .replace(/^www\./i, "")
+            .toLowerCase();
+
+        return SOCIAL_NETWORK_DOMAINS.find(
+            (domain) =>
+                host === domain ||
+                host.endsWith(`.${domain}`)
+        ) || null;
+
+    } catch {
+        return null;
+    }
+}
+
+
 async function verifyImageSource(imageUrl) {
     const unavailable = (message) => ({
         status: "unavailable",
         sourceMatched: false,
+        socialMediaDetected: false,
+        socialMatches: [],
+        manualReviewRequired: true,
         matchedSourceUrl: null,
         matches: [],
         message
@@ -77,16 +122,31 @@ async function verifyImageSource(imageUrl) {
                 url: item.link
             }));
 
+        const socialMatches = matches
+            .map((item) => {
+                const platform = matchSocialNetworkingSite(item.url, item.source);
+                return platform ? { ...item, platform } : null;
+            })
+            .filter(Boolean);
+
+        const socialMediaDetected = socialMatches.length > 0;
+        const primarySocialUrl = socialMatches[0]?.url || matches[0]?.url || null;
+
         return {
             status: matches.length > 0
                 ? "matches_found"
                 : "no_matches_found",
             sourceMatched: matches.length > 0,
-            matchedSourceUrl: matches[0]?.url || null,
+            socialMediaDetected,
+            socialMatches,
+            manualReviewRequired: true,
+            matchedSourceUrl: primarySocialUrl,
             matches,
-            message: matches.length > 0
-                ? "Visually similar images were found online. Human review is required to determine whether they show the same image or incident."
-                : "No visual matches were returned. This does not prove that the image is original or authentic."
+            message: socialMediaDetected
+                ? `Similar image match(es) detected on social networking site(s) (${[...new Set(socialMatches.map((m) => m.platform))].join(", ")}). Manual review is required; this alone does not confirm or reject the incident.`
+                : matches.length > 0
+                    ? "Visually similar images were found online. Human review is required to determine whether they show the same image or incident."
+                    : "No visual matches were returned. This does not prove that the image is original or authentic."
         };
 
     } catch (error) {
@@ -121,6 +181,12 @@ async function analyzeImageAuthenticity(
             message:
                 "Online source verification was not performed. " +
                 "Visual screening alone cannot establish image provenance."
+        },
+        screenRephoto: {
+            status: "inconclusive",
+            prediction: "UNCERTAIN",
+            message: "Screen rephotograph assessment is unavailable.",
+            manualReviewRequired: true
         }
     });
 
@@ -144,9 +210,10 @@ async function analyzeImageAuthenticity(
         const prompt = `
 You are screening an image submitted as disaster-response evidence.
 
+PART 1 - AI GENERATION AND MANIPULATION
+
 Assess whether the visible image contains strong signs of AI generation
-or image manipulation. This is preliminary visual screening, not forensic
-authentication.
+or image manipulation.
 
 Consider:
 - Inconsistent geometry, perspective, reflections, or shadows.
@@ -155,21 +222,34 @@ Consider:
 - Inconsistent textures or structural details.
 - Visible editing inconsistencies.
 
-Rules:
-- Do not infer authenticity from realism alone.
-- Do not label an image FAKE merely because it looks unusual, blurry,
-  compressed, low quality, or unfamiliar.
-- Do not invent metadata or claim to have performed forensic analysis.
-- Choose FAKE only when there are specific, substantial visual indicators.
-- Choose REAL only when no strong visual indicators are apparent.
-- Choose UNCERTAIN when the evidence is ambiguous or insufficient.
-- Even a realistic image may be AI-generated; visual inspection cannot
-  establish provenance.
+PART 2 - PHOTOGRAPH OF ANOTHER SCREEN
 
-Return exactly these three lines:
+Separately assess whether this image appears to be a photograph of
+another device's display, such as a mobile phone, computer, tablet,
+or television.
+
+Look for:
+- Visible screen bezels or device borders.
+- Moiré patterns, pixel grids, or display artifacts.
+- Reflections or glare on the display surface.
+- Perspective distortion consistent with photographing a screen.
+- Browser interfaces, website elements, or image-viewer controls.
+
+Do not classify an image as a screen photograph based only on blur,
+compression, low quality, or unusual lighting.
+
+RULES:
+- Do not infer authenticity from realism alone.
+- Do not invent metadata or claim forensic verification.
+- Choose FAKE only when substantial visual indicators exist.
+- Choose UNCERTAIN when evidence is ambiguous or insufficient.
+- Visual screening cannot prove authenticity.
+
+Return exactly these four lines:
 VERDICT: REAL, FAKE, or UNCERTAIN
-REASON: Brief explanation based only on visible evidence.
-LIMITATION: Preliminary visual screening only; authenticity is unverified.
+REASON: Brief explanation of AI-generation or manipulation indicators.
+SCREEN_REPHOTO: YES, NO, or UNCERTAIN
+SCREEN_REASON: Brief explanation based only on visible screen-related evidence.
 `;
 
         const result = await generateReport(prompt, {
@@ -203,6 +283,7 @@ LIMITATION: Preliminary visual screening only; authenticity is unverified.
             );
         }
 
+
         const verdict = verdictMatches[0][1].toUpperCase();
 
         const reasonMatch = text.match(
@@ -212,6 +293,34 @@ LIMITATION: Preliminary visual screening only; authenticity is unverified.
         const reason = reasonMatch
             ? reasonMatch[1].trim()
             : "No explanation was provided.";
+
+        const screenMatch = text.match(
+            /^\s*SCREEN_REPHOTO\s*:\s*(YES|NO|UNCERTAIN)\s*$/im
+        );
+
+        const screenReasonMatch = text.match(
+            /^\s*SCREEN_REASON\s*:\s*(.+?)\s*$/im
+        );
+
+        const screenRephoto = screenMatch
+            ? screenMatch[1].toUpperCase()
+            : "UNCERTAIN";
+
+        const screenReason = screenReasonMatch
+            ? screenReasonMatch[1].trim()
+            : "Screen rephotograph assessment is unavailable.";
+
+        const screenRephotoResult = {
+            status: screenRephoto === "YES"
+                ? "possible_screen_rephotograph"
+                : screenRephoto === "NO"
+                    ? "no_screen_indicators"
+                    : "inconclusive",
+            prediction: screenRephoto,
+            message: screenReason,
+            manualReviewRequired: true
+        };
+
 
 
         if (verdict === "FAKE") {
@@ -223,6 +332,7 @@ LIMITATION: Preliminary visual screening only; authenticity is unverified.
                 prediction: "FAKE",
                 confidence: null,
                 manualReviewRequired: true,
+                screenRephoto: screenRephotoResult,
                 sourceVerification: {
                     status: "suspicious_provenance",
                     sourceMatched: false,
@@ -232,9 +342,12 @@ LIMITATION: Preliminary visual screening only; authenticity is unverified.
         }
 
         if (verdict === "UNCERTAIN") {
-            return inconclusiveResult(
-                `${reason} Manual review is required.`
-            );
+            return {
+                ...inconclusiveResult(
+                    `${reason} Manual review is required.`
+                ),
+                screenRephoto: screenRephotoResult
+            };
         }
 
         return {
@@ -247,6 +360,7 @@ LIMITATION: Preliminary visual screening only; authenticity is unverified.
             prediction: "REAL",
             confidence: null,
             manualReviewRequired: true,
+            screenRephoto: screenRephotoResult,
             sourceVerification: {
                 status: "unverified_source",
                 sourceMatched: false,
@@ -267,5 +381,6 @@ LIMITATION: Preliminary visual screening only; authenticity is unverified.
 
 module.exports = {
     verifyImageSource,
-    analyzeImageAuthenticity
+    analyzeImageAuthenticity,
+    matchSocialNetworkingSite
 };

@@ -13,7 +13,11 @@ const path = require("path");
 
 const { generateReportSafely } = require("../services/gemini");
 const { processDisasterImage } = require("../services/imageProcessor");
-const { analyzeImageAuthenticity, verifyImageSource } = require("../services/imageAuthenticity");
+const {
+    analyzeImageAuthenticity,
+    verifyImageSource,
+    matchSocialNetworkingSite
+} = require("../services/imageAuthenticity");
 const { checkImageDuplicate } = require("../services/imageDuplicateDetection");
 const { crossCheckDisasterSource } = require("../services/disasterCrossCheck");
 
@@ -25,31 +29,51 @@ async function runInitialDuplicateBackfill() {
     try {
         const request = new sql.Request();
         const result = await request.query(`
-            SELECT Report_id, Photo_Path 
-            FROM Incident_Reports 
-            WHERE Photo_Path IS NOT NULL 
-              AND Report_id NOT IN (SELECT Report_id FROM dbo.Image_Duplicate_Checks)
-            ORDER BY Report_id ASC
+            SELECT IR.Report_id, IR.Photo_Path
+            FROM Incident_Reports IR
+            LEFT JOIN dbo.Image_Duplicate_Checks DC
+                ON DC.Report_id = IR.Report_id
+            WHERE IR.Photo_Path IS NOT NULL
+                AND (
+                    DC.Report_id IS NULL
+                    OR DC.Perceptual_Hash IS NULL
+                )
+            ORDER BY IR.Report_id ASC
         `);
 
         if (result.recordset.length === 0) return;
 
         console.log(`[Duplicate Backfill] Processing ${result.recordset.length} historical reports...`);
 
+        let processed = 0;
+        let failed = 0;
+        let skipped = 0;
+
         for (const report of result.recordset) {
             const possiblePath = fs.existsSync(report.Photo_Path)
                 ? report.Photo_Path
                 : path.join(__dirname, "..", report.Photo_Path);
 
-            if (fs.existsSync(possiblePath)) {
-                try {
-                    await checkImageDuplicate(possiblePath, report.Report_id);
-                } catch (err) {
-                    console.error(`[Duplicate Backfill] Failed for Report #${report.Report_id}:`, err.message);
-                }
+            if (!fs.existsSync(possiblePath)) {
+                skipped++;
+                console.warn(`[Duplicate Backfill] Image missing for Report #${report.Report_id}`);
+                continue;
+            }
+
+            try {
+                await checkImageDuplicate(possiblePath, report.Report_id);
+                processed++;
+            } catch (err) {
+                failed++;
+                console.error(`[Duplicate Backfill] Failed for Report #${report.Report_id}:`, err.message);
             }
         }
-        console.log("[Duplicate Backfill] Completed successfully.");
+        console.log("[Duplicate Backfill] Finished:", {
+            total: result.recordset.length,
+            processed,
+            failed,
+            skipped
+        });
     } catch (err) {
         console.error("[Duplicate Backfill Error]:", err.message);
     }
@@ -89,6 +113,8 @@ router.post(
     "/emergency",
     upload.single("photo"),
     async (req, res) => {
+
+        console.log("EMERGENCY REPORT ROUTE HIT");
 
         let processedImagePath = null;
         let reportSaved = false;
@@ -193,11 +219,21 @@ router.post(
                 status: null,
                 prediction: null,
                 message: null,
-                manualReviewRequired: null
+                manualReviewRequired: null,
+                screenRephoto: {
+                    status: "inconclusive",
+                    prediction: "UNCERTAIN",
+                    message: "Screen rephotograph assessment is unavailable.",
+                    manualReviewRequired: true
+                }
             };
 
             let imageSourceVerification = {
                 status: "unavailable",
+                sourceMatched: false,
+                socialMediaDetected: false,
+                socialMatches: [],
+                manualReviewRequired: true,
                 message:
                     "Online reverse-image verification is unavailable because " +
                     "the submitted image is stored privately. No external service " +
@@ -296,9 +332,19 @@ router.post(
                 // PRELIMINARY IMAGE-AUTHENTICITY SCREENING
                 // ==========================================
 
-                imageAuthenticity = await analyzeImageAuthenticity(
+                const authenticityResult = await analyzeImageAuthenticity(
                     req.file.path
                 );
+
+                imageAuthenticity = {
+                    ...authenticityResult,
+                    screenRephoto: authenticityResult.screenRephoto || {
+                        status: "inconclusive",
+                        prediction: "UNCERTAIN",
+                        message: "Screen rephotograph assessment is unavailable.",
+                        manualReviewRequired: true
+                    }
+                };
 
             }
 
@@ -829,6 +875,37 @@ Do not return multiple alternative values.
                 imageAuthenticity.manualReviewRequired
             );
 
+            const screenRephoto = imageAuthenticity.screenRephoto || {
+                status: "inconclusive",
+                prediction: "UNCERTAIN",
+                message: "Screen rephotograph assessment is unavailable.",
+                manualReviewRequired: true
+            };
+
+            aiRequest.input(
+                "ImageScreenRephotoStatus",
+                sql.NVarChar(50),
+                screenRephoto.status
+            );
+
+            aiRequest.input(
+                "ImageScreenRephotoPrediction",
+                sql.NVarChar(20),
+                screenRephoto.prediction
+            );
+
+            aiRequest.input(
+                "ImageScreenRephotoReason",
+                sql.NVarChar(sql.MAX),
+                screenRephoto.message
+            );
+
+            aiRequest.input(
+                "ImageScreenRephotoManualReview",
+                sql.Bit,
+                screenRephoto.manualReviewRequired
+            );
+
             aiRequest.input(
                 "ImageSourceStatus",
                 sql.NVarChar(30),
@@ -871,6 +948,17 @@ Do not return multiple alternative values.
                 disasterCrossCheck.sourceName
             );
 
+            console.log("SCREEN REPHOTO SAVE CHECK:", {
+                reportId,
+                screenRephoto,
+                parameters: {
+                    status: aiRequest.parameters.ImageScreenRephotoStatus?.value,
+                    prediction: aiRequest.parameters.ImageScreenRephotoPrediction?.value,
+                    reason: aiRequest.parameters.ImageScreenRephotoReason?.value,
+                    manualReview: aiRequest.parameters.ImageScreenRephotoManualReview?.value
+                }
+            });
+
 
             await aiRequest.query(`
 
@@ -888,6 +976,10 @@ Do not return multiple alternative values.
                     Image_Authenticity_Prediction,
                     Image_Authenticity_Reason,
                     Image_Authenticity_Manual_Review,
+                    Image_Screen_Rephoto_Status,
+                    Image_Screen_Rephoto_Prediction,
+                    Image_Screen_Rephoto_Reason,
+                    Image_Screen_Rephoto_Manual_Review,
                     Image_Source_Status,
                     Image_Source_Message,
                     Image_Source_Matched_URL,
@@ -911,6 +1003,10 @@ Do not return multiple alternative values.
                     @ImageAuthenticityPrediction,
                     @ImageAuthenticityReason,
                     @ImageAuthenticityManualReview,
+                    @ImageScreenRephotoStatus,
+                    @ImageScreenRephotoPrediction,
+                    @ImageScreenRephotoReason,
+                    @ImageScreenRephotoManualReview,
                     @ImageSourceStatus,
                     @ImageSourceMessage,
                     @ImageSourceMatchedURL,
@@ -1656,6 +1752,9 @@ router.get(
                         DC.Similar_Report_id,
                         DC.Hamming_Distance,
                         DC.Is_Possible_Duplicate,
+                        DC.Perceptual_Hash,
+                        DC.Perceptual_Hamming_Distance,
+                        DC.Perceptual_Similar_Report_id,
 
                         AI.AI_Category,
                         AI.AI_Severity,
@@ -1669,11 +1768,11 @@ router.get(
                         AI.Image_Authenticity_Prediction,
                         AI.Image_Authenticity_Reason,
                         AI.Image_Authenticity_Manual_Review,
+                        AI.Image_Screen_Rephoto_Status,
+                        AI.Image_Screen_Rephoto_Prediction,
+                        AI.Image_Screen_Rephoto_Reason,
+                        AI.Image_Screen_Rephoto_Manual_Review,
                         AI.Image_Source_Status,
-                        AI.Image_Source_Message,
-                        AI.Image_Source_Matched_URL,
-                        AI.Image_Source_Matches,
-                        AI.Disaster_Cross_Check_Status,
                         AI.Disaster_Cross_Check_Message,
                         AI.Disaster_Cross_Check_Source
 
@@ -1742,7 +1841,10 @@ router.get(
                 DuplicateCheckReportId: firstRow.DuplicateCheckReportId,
                 Similar_Report_id: firstRow.Similar_Report_id,
                 Hamming_Distance: firstRow.Hamming_Distance,
-                Is_Possible_Duplicate: firstRow.Is_Possible_Duplicate
+                Is_Possible_Duplicate: firstRow.Is_Possible_Duplicate,
+                Perceptual_Hash: firstRow.Perceptual_Hash,
+                Perceptual_Hamming_Distance: firstRow.Perceptual_Hamming_Distance,
+                Perceptual_Similar_Report_id: firstRow.Perceptual_Similar_Report_id
             };
 
             // ==========================================
@@ -1811,12 +1913,26 @@ router.get(
                 PossibleDuplicate: {
                     CheckCompleted:
                         duplicateCheckData.DuplicateCheckReportId != null,
+
                     IsPossibleDuplicate:
                         Boolean(duplicateCheckData.Is_Possible_Duplicate),
+
                     SimilarReportId:
-                        duplicateCheckData.Similar_Report_id ?? null,
+                        duplicateCheckData.Similar_Report_id ??
+                        duplicateCheckData.Perceptual_Similar_Report_id ??
+                        null,
+
                     HammingDistance:
-                        duplicateCheckData.Hamming_Distance ?? null
+                        duplicateCheckData.Hamming_Distance ?? null,
+
+                    PerceptualSimilarReportId:
+                        duplicateCheckData.Perceptual_Similar_Report_id ?? null,
+
+                    PerceptualHammingDistance:
+                        duplicateCheckData.Perceptual_Hamming_Distance ?? null,
+
+                    PerceptualHashAvailable:
+                        Boolean(duplicateCheckData.Perceptual_Hash)
                 },
 
                 AI_Analysis: hasAIAnalysis
@@ -1839,16 +1955,39 @@ router.get(
                                 firstRow.Image_Authenticity_Manual_Review
                         },
 
-                        Image_Source_Verification: {
-                            Status: firstRow.Image_Source_Status,
-                            Message: firstRow.Image_Source_Message,
-                            MatchedURL: firstRow.Image_Source_Matched_URL,
-                            Matches: firstRow.Image_Source_Matches
-                                ? JSON.parse(firstRow.Image_Source_Matches)
-                                : []
+                        Image_Screen_Rephoto: {
+                            Status: firstRow.Image_Screen_Rephoto_Status,
+                            Prediction: firstRow.Image_Screen_Rephoto_Prediction,
+                            Message: firstRow.Image_Screen_Rephoto_Reason,
+                            ManualReviewRequired:
+                                firstRow.Image_Screen_Rephoto_Manual_Review
                         },
 
-                        
+                        Image_Source_Verification: (() => {
+                            const parsedMatches = firstRow.Image_Source_Matches
+                                ? JSON.parse(firstRow.Image_Source_Matches)
+                                : [];
+                            const socialMatches = parsedMatches
+                                .map((m) => {
+                                    const platform = matchSocialNetworkingSite(m?.url);
+
+                                    return platform
+                                        ? { ...m, platform }
+                                        : null;
+                                })
+                                .filter(Boolean);
+                            return {
+                                Status: firstRow.Image_Source_Status,
+                                Message: firstRow.Image_Source_Message,
+                                MatchedURL: firstRow.Image_Source_Matched_URL,
+                                Matches: parsedMatches,
+                                SocialMediaDetected: socialMatches.length > 0,
+                                SocialMatches: socialMatches,
+                                ManualReviewRequired: true
+                            };
+                        })(),
+
+
                         Disaster_Cross_Check: {
                             Status: firstRow.Disaster_Cross_Check_Status,
                             Message: firstRow.Disaster_Cross_Check_Message,
@@ -2009,6 +2148,14 @@ router.get(
 
                     })
                 );
+
+
+            console.log("[pHash API DEBUG]", {
+                file: __filename,
+                cwd: process.cwd(),
+                reportId,
+                possibleDuplicate: reportData.PossibleDuplicate
+            });
 
 
             // ==========================================

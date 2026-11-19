@@ -709,6 +709,67 @@ ${(() => {
             })()}
 
 
+
+${(() => {
+                const screen = aiAnalysis.Image_Screen_Rephoto || {};
+
+                const prediction = String(
+                    screen.Prediction || "UNCERTAIN"
+                ).trim().toUpperCase();
+
+                const status = screen.Status || "unavailable";
+
+                const message = screen.Message ||
+                    "Screen-rephotograph assessment is unavailable.";
+
+                const manualReview =
+                    screen.ManualReviewRequired === true ||
+                    String(screen.ManualReviewRequired).toLowerCase() === "true";
+
+                let title = "Screen-Rephotograph Assessment Inconclusive";
+                let style = "background: #fff3cd; color: #856404; border: 1px solid #ffeeba;";
+
+                if (prediction === "YES") {
+                    title = "Possible Screen Rephotograph Detected";
+                    style = "background: #fff1f1; color: #8a3030; border: 1px solid #e5b7b7;";
+                } else if (prediction === "NO") {
+                    title = "No Screen-Rephotograph Indicators Detected";
+                    style = "background: #f0fff4; color: #22543d; border: 1px solid #b7dfc4;";
+                }
+
+                return `
+        <hr>
+        <h3>Screen-Rephotograph Detection</h3>
+
+        <div style="${style} padding: 12px 16px; border-radius: 8px; margin: 12px 0; overflow-wrap: anywhere;">
+            <strong>${title}</strong>
+
+            <p>${escapeHTML(message)}</p>
+
+            <p>
+                <strong>Prediction:</strong>
+                ${escapeHTML(prediction)}
+            </p>
+
+            <p>
+                <strong>Assessment status:</strong>
+                ${escapeHTML(status)}
+            </p>
+
+            ${manualReview
+                        ? `<p><strong>⚠ Manual review required.</strong></p>`
+                        : ""
+                    }
+
+            <p style="font-size: 0.85em;">
+                This visual screening cannot prove that an image is authentic or manipulated.
+            </p>
+        </div>
+    `;
+            })()}
+
+
+
             ${(() => {
                 const verification =
                     aiAnalysis.Image_Source_Verification || {};
@@ -725,7 +786,19 @@ ${(() => {
                 let style =
                     "background: #fff3cd; color: #856404; border: 1px solid #ffeeba;";
 
-                if (status === "matches_found") {
+                const socialMatches = Array.isArray(verification.SocialMatches)
+                    ? verification.SocialMatches
+                    : [];
+                const socialDetected =
+                    verification.SocialMediaDetected === true ||
+                    socialMatches.length > 0 ||
+                    /social networking site/i.test(message);
+
+                if (status === "matches_found" && socialDetected) {
+                    title = "⚠️ Social Networking Site Match — Manual Review Required";
+                    style =
+                        "background: #fff1f1; color: #8a3030; border: 1px solid #e5b7b7;";
+                } else if (status === "matches_found") {
                     title = "⚠️ Similar Images Found Online";
                     style =
                         "background: #fff8e5; color: #795b12; border: 1px solid #f0d58c;";
