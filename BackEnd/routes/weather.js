@@ -7,7 +7,19 @@ router.get("/", async (req, res) => {
 
     try {
 
-        const city = req.query.city || "Delhi";
+        const cityInput = req.query.city ?? "Delhi";
+
+        if (
+            typeof cityInput !== "string" ||
+            cityInput.trim().length === 0 ||
+            cityInput.trim().length > 100
+        ) {
+            return res.status(400).json({
+                message: "Please provide a valid city name"
+            });
+        }
+
+        const city = cityInput.trim();
         const apiKey = process.env.OPENWEATHER_API_KEY;
 
         if (!apiKey) {
@@ -19,7 +31,10 @@ router.get("/", async (req, res) => {
         }
 
         const response = await axios.get(
-            `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`
+            `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`,
+            {
+                timeout: 10000
+            }
         );
 
         const weatherData = {
@@ -89,34 +104,46 @@ router.get("/", async (req, res) => {
                 );
 
                 await disasterQuery.query(`
-                    IF NOT EXISTS (
-    SELECT 1
-    FROM Disaster_Events
-    WHERE Disaster_Type = @DisasterType
-      AND LOWER(LTRIM(RTRIM(Status))) = 'active'
-      AND (End_Date IS NULL OR End_Date >= GETDATE())
-)
-                    BEGIN
-                        INSERT INTO Disaster_Events
-                        (
-                            Disaster_Type,
-                            Disaster_Name,
-                            Description,
-                            Start_Date,
-                            End_Date,
-                            Status
-                        )
-                        VALUES
-                        (
-                            @DisasterType,
-                            @DisasterName,
-                            @Description,
-                            GETDATE(),
-                            DATEADD(day, 3, GETDATE()),
-                            'active'
-                        );
-                    END
-                `);
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Disaster_Events WITH (UPDLOCK, HOLDLOCK)
+            WHERE Disaster_Type = @DisasterType
+              AND LOWER(LTRIM(RTRIM(Status))) = 'active'
+              AND (End_Date IS NULL OR End_Date >= GETDATE())
+        )
+        BEGIN
+            INSERT INTO Disaster_Events
+            (
+                Disaster_Type,
+                Disaster_Name,
+                Description,
+                Start_Date,
+                End_Date,
+                Status
+            )
+            VALUES
+            (
+                @DisasterType,
+                @DisasterName,
+                @Description,
+                GETDATE(),
+                DATEADD(day, 3, GETDATE()),
+                'active'
+            );
+        END;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+
+        THROW;
+    END CATCH;
+`);
 
                 // -------------------------------------------------------------
                 // 2. ATOMIC ALERT CHECK & INSERT (Prevents Race Conditions)
@@ -155,40 +182,52 @@ router.get("/", async (req, res) => {
                 );
 
                 const alertResult = await alertQuery.query(`
-                    IF NOT EXISTS (
-                        SELECT 1 
-                        FROM Alerts 
-                        WHERE Title = @Title 
-                        AND Location_Name = @LocationName 
-                        AND UPPER(Status) = 'ACTIVE'
-                    )
-                    BEGIN
-                        INSERT INTO Alerts
-                        (
-                            Title,
-                            Description,
-                            Alert_Type,
-                            Severity,
-                            Location_Name,
-                            Status
-                        )
-                        VALUES
-                        (
-                            @Title,
-                            @Description,
-                            @AlertType,
-                            @Severity,
-                            @LocationName,
-                            'Active'
-                        );
+    BEGIN TRY
+        BEGIN TRANSACTION;
 
-                        SELECT 1 AS Inserted;
-                    END
-                    ELSE
-                    BEGIN
-                        SELECT 0 AS Inserted;
-                    END
-                `);
+        DECLARE @Inserted BIT = 0;
+
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Alerts WITH (UPDLOCK, HOLDLOCK)
+            WHERE Title = @Title
+              AND Location_Name = @LocationName
+              AND UPPER(Status) = 'ACTIVE'
+        )
+        BEGIN
+            INSERT INTO Alerts
+            (
+                Title,
+                Description,
+                Alert_Type,
+                Severity,
+                Location_Name,
+                Status
+            )
+            VALUES
+            (
+                @Title,
+                @Description,
+                @AlertType,
+                @Severity,
+                @LocationName,
+                'Active'
+            );
+
+            SET @Inserted = 1;
+        END;
+
+        COMMIT TRANSACTION;
+
+        SELECT @Inserted AS Inserted;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+
+        THROW;
+    END CATCH;
+`);
 
                 if (alertResult.recordset[0]?.Inserted === 1) {
 
@@ -239,13 +278,19 @@ router.get("/", async (req, res) => {
 
         }
 
-        res.status(500).json({
-            message: "Weather data fetch failed",
-            details:
-                error.response?.data?.message ||
-                error.message
-        });
+        const statusCode =
+            error.response?.status === 404 ? 404 :
+                error.code === "ECONNABORTED" ? 504 :
+                    502;
 
+        res.status(statusCode).json({
+            message:
+                statusCode === 404
+                    ? "City not found"
+                    : statusCode === 504
+                        ? "Weather service timed out"
+                        : "Weather service temporarily unavailable"
+        });
     }
 
 });

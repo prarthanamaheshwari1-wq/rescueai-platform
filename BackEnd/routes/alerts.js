@@ -63,7 +63,13 @@ router.put(
 
         try {
 
-            const alertId = req.params.id;
+            const alertId = Number(req.params.id);
+
+            if (!Number.isSafeInteger(alertId) || alertId <= 0) {
+                return res.status(400).json({
+                    message: "Valid alert ID is required."
+                });
+            }
 
             const request = new sql.Request();
 
@@ -73,11 +79,17 @@ router.put(
                 alertId
             );
 
-            await request.query(`
-            UPDATE Alerts
-            SET Status = 'Resolved'
-            WHERE Alert_id = @AlertId
-        `);
+            const result = await request.query(`
+    UPDATE Alerts
+    SET Status = 'Resolved'
+    WHERE Alert_id = @AlertId
+`);
+
+            if (result.rowsAffected[0] === 0) {
+                return res.status(404).json({
+                    message: "Alert not found."
+                });
+            }
 
             return res.status(200).json({
                 message: "Alert resolved successfully"

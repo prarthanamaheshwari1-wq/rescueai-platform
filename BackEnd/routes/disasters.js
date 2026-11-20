@@ -2,17 +2,27 @@ const express = require("express");
 const router = express.Router();
 
 const { sql } = require("../config/db");
+const { authenticateToken, authorizeRoles } = require("../middleware/auth");
 
 // Get all disaster events
-router.get("/", async (req, res) => {
+router.get(
+    "/",
+    authenticateToken,
+    authorizeRoles("authority"),
+    async (req, res) => {
 
-    try {
+        try {
 
-        const request = new sql.Request();
+            const request = new sql.Request();
 
-        const result = await request.query(`
+            const result = await request.query(`
     SELECT
-        *,
+        Disaster_id,
+        Disaster_Type,
+        Disaster_Name,
+        Description,
+        Start_Date,
+        End_Date,
         CASE
             WHEN End_Date IS NOT NULL
                  AND End_Date < GETDATE()
@@ -23,28 +33,27 @@ router.get("/", async (req, res) => {
     FROM Disaster_Events
     ORDER BY Disaster_id DESC
 `);
+            const disasterEvents = result.recordset.map((event) => {
+                const { Current_Status, ...rest } = event;
 
-        const disasterEvents = result.recordset.map((event) => {
-            const { Current_Status, ...rest } = event;
+                return {
+                    ...rest,
+                    Status: Current_Status
+                };
+            });
 
-            return {
-                ...rest,
-                Status: Current_Status
-            };
-        });
+            res.status(200).json(disasterEvents);
 
-        res.status(200).json(disasterEvents);
+        } catch (error) {
 
-    } catch (error) {
+            console.error("Disaster Events Error:", error);
 
-        console.error("Disaster Events Error:", error);
+            res.status(500).json({
+                message: "Server Error"
+            });
 
-        res.status(500).json({
-            message: "Server Error"
-        });
+        }
 
-    }
-
-});
+    });
 
 module.exports = router;

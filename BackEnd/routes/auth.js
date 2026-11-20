@@ -35,6 +35,38 @@ function hashToken(token) {
 const ACCESS_TOKEN_EXPIRY = 10 * 60;           // 10 minutes
 const REFRESH_TOKEN_EXPIRY = 7 * 24 * 60 * 60; // 7 days
 
+// ==========================================
+// ATOMIC REFRESH TOKEN ROTATION
+// ==========================================
+
+const ROTATE_REFRESH_TOKEN_SCRIPT = `
+    local oldSession = redis.call("GET", KEYS[1])
+
+    if not oldSession then
+        return 0
+    end
+
+    redis.call("DEL", KEYS[1])
+
+    redis.call(
+        "SET",
+        KEYS[2],
+        ARGV[1],
+        "EX",
+        ARGV[2]
+    )
+
+    redis.call(
+        "SET",
+        KEYS[3],
+        ARGV[3],
+        "EX",
+        ARGV[4]
+    )
+
+    return 1
+`;
+
 
 // ==========================================
 // READ COOKIE
@@ -96,15 +128,56 @@ router.post("/register", async (req, res) => {
         }
 
 
-        if (!fullName || !email || !password) {
-
+        if (
+            typeof fullName !== "string" ||
+            typeof email !== "string" ||
+            typeof password !== "string" ||
+            !fullName.trim() ||
+            !email.trim() ||
+            password.length === 0
+        ) {
             return res.status(400).json({
-                message:
-                    "Full name, email, and password are required"
+                message: "Full name, email, and password are required."
             });
-
         }
 
+        const normalizedFullName = fullName.trim();
+        const normalizedEmail = email.trim().toLowerCase();
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (
+            normalizedFullName.length > 100 ||
+            normalizedEmail.length > 254 ||
+            !emailRegex.test(normalizedEmail)
+        ) {
+            return res.status(400).json({
+                message: "Please provide a valid name and email address."
+            });
+        }
+
+        if (
+            password.length < 8 ||
+            Buffer.byteLength(password, "utf8") > 72
+        ) {
+            return res.status(400).json({
+                message: "Password must be at least 8 characters and no more than 72 bytes."
+            });
+        }
+
+        if (
+            phoneNo !== undefined &&
+            phoneNo !== null &&
+            (
+                typeof phoneNo !== "string" ||
+                !phoneNo.trim() ||
+                !/^[0-9+\-\s()]{7,20}$/.test(phoneNo.trim())
+            )
+        ) {
+            return res.status(400).json({
+                message: "Please provide a valid phone number."
+            });
+        }
 
         // ==========================================
         // CHECK EXISTING USER
@@ -116,7 +189,7 @@ router.post("/register", async (req, res) => {
         checkRequest.input(
             "Email",
             sql.VarChar,
-            email
+            normalizedEmail
         );
 
         const existingUser =
@@ -153,13 +226,13 @@ router.post("/register", async (req, res) => {
         insertRequest.input(
             "FullName",
             sql.VarChar,
-            fullName
+            normalizedFullName
         );
 
         insertRequest.input(
             "Email",
             sql.VarChar,
-            email
+            normalizedEmail
         );
 
         insertRequest.input(
@@ -177,7 +250,7 @@ router.post("/register", async (req, res) => {
         insertRequest.input(
             "PhoneNo",
             sql.VarChar,
-            phoneNo || null
+            phoneNo ? phoneNo.trim() : null
         );
 
 
@@ -252,7 +325,7 @@ router.post("/login", async (req, res) => {
         // FIND USER
         // ==========================================
 
-        const normalizedEmail = email.trim();
+        const normalizedEmail = email.trim().toLowerCase();
 
         const request = new sql.Request();
 
@@ -281,6 +354,15 @@ router.post("/login", async (req, res) => {
 
         const user =
             result.recordset[0];
+
+        if (
+            typeof user.Password_Hash !== "string" ||
+            !user.Password_Hash
+        ) {
+            return res.status(401).json({
+                message: "Invalid email or password"
+            });
+        }
 
 
         const allowedRoles = ["authority", "volunteer"];
@@ -632,49 +714,51 @@ router.post("/refresh", async (req, res) => {
 
 
         // ==========================================
-        // DELETE OLD REFRESH SESSION
-        // ==========================================
-
-        await redisClient.del(
-            refreshSessionKey
-        );
-
-
-        // ==========================================
-        // STORE NEW REFRESH SESSION
+        // ATOMICALLY ROTATE REFRESH AND ACCESS TOKENS
         // ==========================================
 
         const newRefreshSessionKey =
             `refresh:${newRefreshTokenHash}`;
 
-        await redisClient.set(
-            newRefreshSessionKey,
-            JSON.stringify({
-                userId: user.User_id
-            }),
-            {
-                EX: REFRESH_TOKEN_EXPIRY
-            }
-        );
-
-
-        // ==========================================
-        // STORE NEW ACCESS SESSION
-        // ==========================================
-
         const newAccessSessionKey =
             `access:${newAccessTokenHash}`;
 
-        await redisClient.set(
-            newAccessSessionKey,
-            JSON.stringify({
-                userId: user.User_id,
-                role: user.Role
-            }),
+        const rotationResult = await redisClient.eval(
+            ROTATE_REFRESH_TOKEN_SCRIPT,
             {
-                EX: ACCESS_TOKEN_EXPIRY
+                keys: [
+                    refreshSessionKey,
+                    newRefreshSessionKey,
+                    newAccessSessionKey
+                ],
+                arguments: [
+                    JSON.stringify({
+                        userId: user.User_id
+                    }),
+                    String(REFRESH_TOKEN_EXPIRY),
+                    JSON.stringify({
+                        userId: user.User_id,
+                        role: user.Role
+                    }),
+                    String(ACCESS_TOKEN_EXPIRY)
+                ]
             }
         );
+
+        if (rotationResult !== 1) {
+            const isProduction = process.env.NODE_ENV === "production";
+
+            res.clearCookie("refreshToken", {
+                httpOnly: true,
+                secure: isProduction,
+                sameSite: isProduction ? "none" : "lax",
+                path: "/"
+            });
+
+            return res.status(401).json({
+                message: "Refresh token is invalid or has already been used."
+            });
+        }
 
 
         // ==========================================

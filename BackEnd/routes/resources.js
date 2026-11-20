@@ -98,7 +98,11 @@ router.post("/", authenticateToken, authorizeRoles("authority"), async (req, res
 // GET ALL RESOURCES
 // ==========================================
 
-router.get("/", async (req, res) => {
+router.get(
+    "/",
+    authenticateToken,
+    authorizeRoles("authority"),
+    async (req, res) => {
 
     try {
 

@@ -11,14 +11,14 @@ const { authenticateToken, authorizeRoles } = require("../middleware/auth");
 router.get(
     "/",
     authenticateToken,
-    authorizeRoles("authority", "responder"),
+    authorizeRoles("authority"),
     async (req, res) => {
 
         try {
 
-            const request = new sql.Request();
+    const request = new sql.Request();
 
-            const result = await request.query(`
+    const result = await request.query(`
             SELECT
                 V.Volunteer_id,
                 U.Full_Name,
@@ -27,26 +27,24 @@ router.get(
                 U.Role,
                 V.Skills,
                 V.Availability,
-                V.Location_Name,
-                V.Latitude,
-                V.Longitude
+                V.Location_Name
             FROM Volunteers V
             INNER JOIN Users U
                 ON V.User_id = U.User_id
             ORDER BY V.Volunteer_id DESC
-        `);
+            `);
 
-            res.status(200).json(result.recordset);
+    res.status(200).json(result.recordset);
 
-        } catch (error) {
+} catch (error) {
 
-            console.error("Volunteer Error:", error);
+    console.error("Volunteer Error:", error);
 
-            res.status(500).json({
-                message: "Server Error"
-            });
+    res.status(500).json({
+        message: "Server Error"
+    });
 
-        }
+}
 
     });
 
@@ -95,16 +93,13 @@ router.post(
                 .trim()
                 .toLowerCase();
 
-            if (!["volunteer", "authority"].includes(normalizedRole)) {
+            if (normalizedRole !== "volunteer") {
                 return res.status(400).json({
-                    message: "Role must be Volunteer or Authority."
+                    message: "Only volunteer accounts can be created here."
                 });
             }
 
-            const assignedRole =
-                normalizedRole === "authority"
-                    ? "authority"
-                    : "Volunteer";
+            const assignedRole = "Volunteer";
 
 
             // Check whether email already exists
@@ -142,130 +137,95 @@ router.post(
                 await bcrypt.hash(password, 10);
 
 
-            // Create User
+            // Create User and Volunteer in one transaction
 
-            const userRequest =
-                new sql.Request();
+            const transaction = new sql.Transaction();
 
-            userRequest.input(
-                "FullName",
-                sql.VarChar,
-                fullName
-            );
+            await transaction.begin();
 
-            userRequest.input(
-                "Email",
-                sql.VarChar,
-                email
-            );
+            let volunteerId;
 
-            userRequest.input(
-                "PasswordHash",
-                sql.VarChar,
-                hashedPassword
-            );
+            try {
 
-            userRequest.input(
-                "PhoneNo",
-                sql.VarChar,
-                phoneNo || null
-            );
+                // Create User
 
-            userRequest.input(
-                "Role",
-                sql.VarChar,
-                assignedRole
-            );
+                const userRequest = new sql.Request(transaction);
 
+                userRequest.input("FullName", sql.VarChar, fullName);
+                userRequest.input("Email", sql.VarChar, email);
+                userRequest.input("PasswordHash", sql.VarChar, hashedPassword);
+                userRequest.input("PhoneNo", sql.VarChar, phoneNo || null);
+                userRequest.input("Role", sql.VarChar, assignedRole);
 
-            const userResult =
-                await userRequest.query(`
-                INSERT INTO Users
-                (
-                    Full_Name,
-                    Email,
-                    Password_Hash,
-                    Role,
-                    Phone_No
-                )
-                OUTPUT INSERTED.User_id
-                VALUES
-                (
-                    @FullName,
-                    @Email,
-                    @PasswordHash,
-                    @Role,
-                    @PhoneNo
-                )
-            `);
+                const userResult = await userRequest.query(`
+        INSERT INTO Users
+        (
+            Full_Name,
+            Email,
+            Password_Hash,
+            Role,
+            Phone_No
+        )
+        OUTPUT INSERTED.User_id
+        VALUES
+        (
+            @FullName,
+            @Email,
+            @PasswordHash,
+            @Role,
+            @PhoneNo
+        )
+    `);
 
+                const userId = userResult.recordset[0].User_id;
 
-            const userId =
-                userResult.recordset[0].User_id;
+                // Create Volunteer
 
+                const volunteerRequest = new sql.Request(transaction);
 
-            // Create Volunteer
+                volunteerRequest.input("UserId", sql.Int, userId);
+                volunteerRequest.input("Skills", sql.NVarChar, skills || null);
+                volunteerRequest.input("LocationName", sql.NVarChar, locationName || null);
+                volunteerRequest.input("Latitude", sql.Decimal(10, 7), latitude || null);
+                volunteerRequest.input("Longitude", sql.Decimal(10, 7), longitude || null);
 
-            const volunteerRequest =
-                new sql.Request();
+                const volunteerResult = await volunteerRequest.query(`
+        INSERT INTO Volunteers
+        (
+            User_id,
+            Skills,
+            Availability,
+            Location_Name,
+            Latitude,
+            Longitude
+        )
+        OUTPUT INSERTED.Volunteer_id
+        VALUES
+        (
+            @UserId,
+            @Skills,
+            'available',
+            @LocationName,
+            @Latitude,
+            @Longitude
+        )
+    `);
 
-            volunteerRequest.input(
-                "UserId",
-                sql.Int,
-                userId
-            );
+                volunteerId = volunteerResult.recordset[0].Volunteer_id;
 
-            volunteerRequest.input(
-                "Skills",
-                sql.NVarChar,
-                skills || null
-            );
+                await transaction.commit();
 
-            volunteerRequest.input(
-                "LocationName",
-                sql.NVarChar,
-                locationName || null
-            );
+            } catch (transactionError) {
 
-            volunteerRequest.input(
-                "Latitude",
-                sql.Decimal(10, 7),
-                latitude || null
-            );
+                try {
+                    await transaction.rollback();
+                } catch (rollbackError) {
+                    console.error("Transaction Rollback Error:", rollbackError);
+                }
 
-            volunteerRequest.input(
-                "Longitude",
-                sql.Decimal(10, 7),
-                longitude || null
-            );
+                throw transactionError;
 
-
-            const volunteerResult =
-                await volunteerRequest.query(`
-                INSERT INTO Volunteers
-                (
-                    User_id,
-                    Skills,
-                    Availability,
-                    Location_Name,
-                    Latitude,
-                    Longitude
-                )
-                OUTPUT INSERTED.Volunteer_id
-                VALUES
-                (
-                    @UserId,
-                    @Skills,
-                    'available',
-                    @LocationName,
-                    @Latitude,
-                    @Longitude
-                )
-            `);
-
-
-            const volunteerId =
-                volunteerResult.recordset[0].Volunteer_id;
+            }
 
 
             res.status(201).json({

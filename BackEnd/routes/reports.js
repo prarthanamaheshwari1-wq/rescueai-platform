@@ -1110,6 +1110,8 @@ Do not return multiple alternative values.
 
 router.get(
     "/",
+    authenticateToken,
+    authorizeRoles("authority"),
     async (req, res) => {
 
         try {
@@ -1163,6 +1165,8 @@ router.get(
 
 router.get(
     "/pending",
+    authenticateToken,
+    authorizeRoles("authority"),
     async (req, res) => {
 
         try {
@@ -1689,48 +1693,46 @@ router.get("/public-feed", async (req, res) => {
 // GET SINGLE REPORT + AI + RESOURCES + VOLUNTEERS
 // ==========================================
 
-router.get(
-    "/:reportId",
-    async (req, res) => {
+router.get("/:reportId", authenticateToken, authorizeRoles("authority"), async (req, res) => {
 
-        try {
+    try {
 
-            const reportId =
-                Number(req.params.reportId);
+        const reportId =
+            Number(req.params.reportId);
 
 
-            if (
-                !Number.isInteger(reportId) ||
-                reportId <= 0
-            ) {
+        if (
+            !Number.isInteger(reportId) ||
+            reportId <= 0
+        ) {
 
-                return res.status(400).json({
+            return res.status(400).json({
 
-                    message:
-                        "Invalid report ID."
+                message:
+                    "Invalid report ID."
 
-                });
+            });
 
-            }
-
-
-            // ==========================================
-            // GET REPORT + AI ANALYSIS
-            // ==========================================
-
-            const reportRequest =
-                new sql.Request();
+        }
 
 
-            reportRequest.input(
-                "ReportId",
-                sql.Int,
-                reportId
-            );
+        // ==========================================
+        // GET REPORT + AI ANALYSIS
+        // ==========================================
+
+        const reportRequest =
+            new sql.Request();
 
 
-            const reportResult =
-                await reportRequest.query(`
+        reportRequest.input(
+            "ReportId",
+            sql.Int,
+            reportId
+        );
+
+
+        const reportResult =
+            await reportRequest.query(`
 
                     SELECT
 
@@ -1789,238 +1791,238 @@ router.get(
                 `);
 
 
-            if (
-                reportResult.recordset.length === 0
-            ) {
+        if (
+            reportResult.recordset.length === 0
+        ) {
 
-                return res.status(404).json({
+            return res.status(404).json({
 
-                    message:
-                        "Report not found."
+                message:
+                    "Report not found."
 
-                });
-
-            }
-
-
-            const firstRow =
-                reportResult.recordset[0];
-
-            // ==========================================
-            // INCIDENT CONSISTENCY CHECK
-            // ==========================================
-
-            const incidentConsistency = checkIncidentConsistency({
-                category: firstRow.Category,
-                description: firstRow.Description,
-                locationName: firstRow.Location_Name,
-                latitude: firstRow.Latitude,
-                longitude: firstRow.Longitude,
-                aiVisualFindings: firstRow.AI_Visual_Findings
             });
 
-            const locationConsistency = await checkLocationConsistency({
-                locationName: firstRow.Location_Name,
-                latitude: firstRow.Latitude,
-                longitude: firstRow.Longitude
+        }
+
+
+        const firstRow =
+            reportResult.recordset[0];
+
+        // ==========================================
+        // INCIDENT CONSISTENCY CHECK
+        // ==========================================
+
+        const incidentConsistency = checkIncidentConsistency({
+            category: firstRow.Category,
+            description: firstRow.Description,
+            locationName: firstRow.Location_Name,
+            latitude: firstRow.Latitude,
+            longitude: firstRow.Longitude,
+            aiVisualFindings: firstRow.AI_Visual_Findings
+        });
+
+        const locationConsistency = await checkLocationConsistency({
+            locationName: firstRow.Location_Name,
+            latitude: firstRow.Latitude,
+            longitude: firstRow.Longitude
+        });
+
+        if (!locationConsistency.checked || !locationConsistency.consistent) {
+            incidentConsistency.reviewRecommended = true;
+
+            incidentConsistency.warnings.push({
+                type: "LOCATION_CONSISTENCY",
+                message: locationConsistency.message
             });
+        }
 
-            if (!locationConsistency.checked || !locationConsistency.consistent) {
-                incidentConsistency.reviewRecommended = true;
+        // ==========================================
+        // BACKFILL DUPLICATE CHECK FOR OLDER REPORTS
+        // ==========================================
+        const duplicateCheckData = {
+            DuplicateCheckReportId: firstRow.DuplicateCheckReportId,
+            Similar_Report_id: firstRow.Similar_Report_id,
+            Hamming_Distance: firstRow.Hamming_Distance,
+            Is_Possible_Duplicate: firstRow.Is_Possible_Duplicate,
+            Perceptual_Hash: firstRow.Perceptual_Hash,
+            Perceptual_Hamming_Distance: firstRow.Perceptual_Hamming_Distance,
+            Perceptual_Similar_Report_id: firstRow.Perceptual_Similar_Report_id
+        };
 
-                incidentConsistency.warnings.push({
-                    type: "LOCATION_CONSISTENCY",
-                    message: locationConsistency.message
-                });
-            }
+        // ==========================================
+        // CHECK AI ANALYSIS
+        // ==========================================
 
-            // ==========================================
-            // BACKFILL DUPLICATE CHECK FOR OLDER REPORTS
-            // ==========================================
-            const duplicateCheckData = {
-                DuplicateCheckReportId: firstRow.DuplicateCheckReportId,
-                Similar_Report_id: firstRow.Similar_Report_id,
-                Hamming_Distance: firstRow.Hamming_Distance,
-                Is_Possible_Duplicate: firstRow.Is_Possible_Duplicate,
-                Perceptual_Hash: firstRow.Perceptual_Hash,
-                Perceptual_Hamming_Distance: firstRow.Perceptual_Hamming_Distance,
-                Perceptual_Similar_Report_id: firstRow.Perceptual_Similar_Report_id
-            };
-
-            // ==========================================
-            // CHECK AI ANALYSIS
-            // ==========================================
-
-            const hasAIAnalysis =
-                Boolean(
-                    firstRow.AI_Summary ||
-                    firstRow.AI_Category ||
-                    firstRow.AI_Severity
-                );
-
-
-
-
-            // ==========================================
-            // CREATE REPORT OBJECT
-            // ==========================================
-
-            const reportData = {
-
-                Report_id:
-                    firstRow.Report_id,
-
-                Title:
-                    firstRow.Title,
-
-                Description:
-                    firstRow.Description,
-
-                Category:
-                    firstRow.Category,
-
-                Severity:
-                    firstRow.Severity,
-
-                Priority:
-                    firstRow.Priority,
-
-                Location_Name:
-                    firstRow.Location_Name,
-
-                Latitude:
-                    firstRow.Latitude,
-
-                Longitude:
-                    firstRow.Longitude,
-
-                Status:
-                    firstRow.Status,
-
-                Created_At:
-                    firstRow.Created_At,
-
-                Photo_Path:
-                    firstRow.Photo_Path,
-
-                IncidentConsistency: {
-                    ReviewRecommended:
-                        incidentConsistency.reviewRecommended,
-                    Warnings:
-                        incidentConsistency.warnings
-                },
-
-                PossibleDuplicate: {
-                    CheckCompleted:
-                        duplicateCheckData.DuplicateCheckReportId != null,
-
-                    IsPossibleDuplicate:
-                        Boolean(duplicateCheckData.Is_Possible_Duplicate),
-
-                    SimilarReportId:
-                        duplicateCheckData.Similar_Report_id ??
-                        duplicateCheckData.Perceptual_Similar_Report_id ??
-                        null,
-
-                    HammingDistance:
-                        duplicateCheckData.Hamming_Distance ?? null,
-
-                    PerceptualSimilarReportId:
-                        duplicateCheckData.Perceptual_Similar_Report_id ?? null,
-
-                    PerceptualHammingDistance:
-                        duplicateCheckData.Perceptual_Hamming_Distance ?? null,
-
-                    PerceptualHashAvailable:
-                        Boolean(duplicateCheckData.Perceptual_Hash)
-                },
-
-                AI_Analysis: hasAIAnalysis
-                    ? {
-                        Category: firstRow.AI_Category,
-                        Severity: firstRow.AI_Severity,
-                        Priority: firstRow.AI_Priority,
-                        Misinformation_Score: firstRow.Misinformation_Score,
-                        Summary: firstRow.AI_Summary,
-                        Visual_Findings: firstRow.AI_Visual_Findings,
-                        Recommendation: firstRow.AI_Recommendation,
-                        Analyzed_At: firstRow.Analyzed_At,
-
-                        Image_Authenticity: {
-                            Status: firstRow.Image_Authenticity_Status,
-                            Prediction: firstRow.Image_Authenticity_Prediction,
-                            Message: firstRow.Image_Authenticity_Reason,
-                            Confidence: null,
-                            ManualReviewRequired:
-                                firstRow.Image_Authenticity_Manual_Review
-                        },
-
-                        Image_Screen_Rephoto: {
-                            Status: firstRow.Image_Screen_Rephoto_Status,
-                            Prediction: firstRow.Image_Screen_Rephoto_Prediction,
-                            Message: firstRow.Image_Screen_Rephoto_Reason,
-                            ManualReviewRequired:
-                                firstRow.Image_Screen_Rephoto_Manual_Review
-                        },
-
-                        Image_Source_Verification: (() => {
-                            const parsedMatches = firstRow.Image_Source_Matches
-                                ? JSON.parse(firstRow.Image_Source_Matches)
-                                : [];
-                            const socialMatches = parsedMatches
-                                .map((m) => {
-                                    const platform = matchSocialNetworkingSite(m?.url);
-
-                                    return platform
-                                        ? { ...m, platform }
-                                        : null;
-                                })
-                                .filter(Boolean);
-                            return {
-                                Status: firstRow.Image_Source_Status,
-                                Message: firstRow.Image_Source_Message,
-                                MatchedURL: firstRow.Image_Source_Matched_URL,
-                                Matches: parsedMatches,
-                                SocialMediaDetected: socialMatches.length > 0,
-                                SocialMatches: socialMatches,
-                                ManualReviewRequired: true
-                            };
-                        })(),
-
-
-                        Disaster_Cross_Check: {
-                            Status: firstRow.Disaster_Cross_Check_Status,
-                            Message: firstRow.Disaster_Cross_Check_Message,
-                            Source: firstRow.Disaster_Cross_Check_Source
-                        }
-                    }
-                    : null,
-
-
-                Resources: [],
-
-                Volunteers: []
-
-            };
-
-
-            // ==========================================
-            // GET ASSIGNED RESOURCES
-            // ==========================================
-
-            const resourceRequest =
-                new sql.Request();
-
-
-            resourceRequest.input(
-                "ReportId",
-                sql.Int,
-                reportId
+        const hasAIAnalysis =
+            Boolean(
+                firstRow.AI_Summary ||
+                firstRow.AI_Category ||
+                firstRow.AI_Severity
             );
 
 
-            const resourceResult =
-                await resourceRequest.query(`
+
+
+        // ==========================================
+        // CREATE REPORT OBJECT
+        // ==========================================
+
+        const reportData = {
+
+            Report_id:
+                firstRow.Report_id,
+
+            Title:
+                firstRow.Title,
+
+            Description:
+                firstRow.Description,
+
+            Category:
+                firstRow.Category,
+
+            Severity:
+                firstRow.Severity,
+
+            Priority:
+                firstRow.Priority,
+
+            Location_Name:
+                firstRow.Location_Name,
+
+            Latitude:
+                firstRow.Latitude,
+
+            Longitude:
+                firstRow.Longitude,
+
+            Status:
+                firstRow.Status,
+
+            Created_At:
+                firstRow.Created_At,
+
+            Photo_Path:
+                firstRow.Photo_Path,
+
+            IncidentConsistency: {
+                ReviewRecommended:
+                    incidentConsistency.reviewRecommended,
+                Warnings:
+                    incidentConsistency.warnings
+            },
+
+            PossibleDuplicate: {
+                CheckCompleted:
+                    duplicateCheckData.DuplicateCheckReportId != null,
+
+                IsPossibleDuplicate:
+                    Boolean(duplicateCheckData.Is_Possible_Duplicate),
+
+                SimilarReportId:
+                    duplicateCheckData.Similar_Report_id ??
+                    duplicateCheckData.Perceptual_Similar_Report_id ??
+                    null,
+
+                HammingDistance:
+                    duplicateCheckData.Hamming_Distance ?? null,
+
+                PerceptualSimilarReportId:
+                    duplicateCheckData.Perceptual_Similar_Report_id ?? null,
+
+                PerceptualHammingDistance:
+                    duplicateCheckData.Perceptual_Hamming_Distance ?? null,
+
+                PerceptualHashAvailable:
+                    Boolean(duplicateCheckData.Perceptual_Hash)
+            },
+
+            AI_Analysis: hasAIAnalysis
+                ? {
+                    Category: firstRow.AI_Category,
+                    Severity: firstRow.AI_Severity,
+                    Priority: firstRow.AI_Priority,
+                    Misinformation_Score: firstRow.Misinformation_Score,
+                    Summary: firstRow.AI_Summary,
+                    Visual_Findings: firstRow.AI_Visual_Findings,
+                    Recommendation: firstRow.AI_Recommendation,
+                    Analyzed_At: firstRow.Analyzed_At,
+
+                    Image_Authenticity: {
+                        Status: firstRow.Image_Authenticity_Status,
+                        Prediction: firstRow.Image_Authenticity_Prediction,
+                        Message: firstRow.Image_Authenticity_Reason,
+                        Confidence: null,
+                        ManualReviewRequired:
+                            firstRow.Image_Authenticity_Manual_Review
+                    },
+
+                    Image_Screen_Rephoto: {
+                        Status: firstRow.Image_Screen_Rephoto_Status,
+                        Prediction: firstRow.Image_Screen_Rephoto_Prediction,
+                        Message: firstRow.Image_Screen_Rephoto_Reason,
+                        ManualReviewRequired:
+                            firstRow.Image_Screen_Rephoto_Manual_Review
+                    },
+
+                    Image_Source_Verification: (() => {
+                        const parsedMatches = firstRow.Image_Source_Matches
+                            ? JSON.parse(firstRow.Image_Source_Matches)
+                            : [];
+                        const socialMatches = parsedMatches
+                            .map((m) => {
+                                const platform = matchSocialNetworkingSite(m?.url);
+
+                                return platform
+                                    ? { ...m, platform }
+                                    : null;
+                            })
+                            .filter(Boolean);
+                        return {
+                            Status: firstRow.Image_Source_Status,
+                            Message: firstRow.Image_Source_Message,
+                            MatchedURL: firstRow.Image_Source_Matched_URL,
+                            Matches: parsedMatches,
+                            SocialMediaDetected: socialMatches.length > 0,
+                            SocialMatches: socialMatches,
+                            ManualReviewRequired: true
+                        };
+                    })(),
+
+
+                    Disaster_Cross_Check: {
+                        Status: firstRow.Disaster_Cross_Check_Status,
+                        Message: firstRow.Disaster_Cross_Check_Message,
+                        Source: firstRow.Disaster_Cross_Check_Source
+                    }
+                }
+                : null,
+
+
+            Resources: [],
+
+            Volunteers: []
+
+        };
+
+
+        // ==========================================
+        // GET ASSIGNED RESOURCES
+        // ==========================================
+
+        const resourceRequest =
+            new sql.Request();
+
+
+        resourceRequest.input(
+            "ReportId",
+            sql.Int,
+            reportId
+        );
+
+
+        const resourceResult =
+            await resourceRequest.query(`
 
                     SELECT
 
@@ -2049,55 +2051,55 @@ router.get(
                 `);
 
 
-            reportData.Resources =
-                resourceResult.recordset.map(
-                    row => ({
+        reportData.Resources =
+            resourceResult.recordset.map(
+                row => ({
 
-                        Assignment_id:
-                            row.Assignment_id,
+                    Assignment_id:
+                        row.Assignment_id,
 
-                        Resource_id:
-                            row.Resource_id,
+                    Resource_id:
+                        row.Resource_id,
 
-                        Resource_Name:
-                            row.Resource_Name,
+                    Resource_Name:
+                        row.Resource_Name,
 
-                        Resource_Type:
-                            row.Resource_Type,
+                    Resource_Type:
+                        row.Resource_Type,
 
-                        Quantity:
-                            row.Quantity,
+                    Quantity:
+                        row.Quantity,
 
-                        Resource_Location:
-                            row.Resource_Location,
+                    Resource_Location:
+                        row.Resource_Location,
 
-                        Resource_Status:
-                            row.Resource_Status,
+                    Resource_Status:
+                        row.Resource_Status,
 
-                        Assignment_Status:
-                            row.Assignment_Status
+                    Assignment_Status:
+                        row.Assignment_Status
 
-                    })
-                );
-
-
-            // ==========================================
-            // GET ASSIGNED VOLUNTEERS
-            // ==========================================
-
-            const volunteerRequest =
-                new sql.Request();
-
-
-            volunteerRequest.input(
-                "ReportId",
-                sql.Int,
-                reportId
+                })
             );
 
 
-            const volunteerResult =
-                await volunteerRequest.query(`
+        // ==========================================
+        // GET ASSIGNED VOLUNTEERS
+        // ==========================================
+
+        const volunteerRequest =
+            new sql.Request();
+
+
+        volunteerRequest.input(
+            "ReportId",
+            sql.Int,
+            reportId
+        );
+
+
+        const volunteerResult =
+            await volunteerRequest.query(`
 
                     SELECT
 
@@ -2124,67 +2126,67 @@ router.get(
                 `);
 
 
-            reportData.Volunteers =
-                volunteerResult.recordset.map(
-                    row => ({
+        reportData.Volunteers =
+            volunteerResult.recordset.map(
+                row => ({
 
-                        Assignment_id:
-                            row.Assignment_id,
+                    Assignment_id:
+                        row.Assignment_id,
 
-                        Volunteer_id:
-                            row.Volunteer_id,
+                    Volunteer_id:
+                        row.Volunteer_id,
 
-                        Skill:
-                            row.Volunteer_Skill,
+                    Skill:
+                        row.Volunteer_Skill,
 
-                        Status:
-                            row.Volunteer_Status,
+                    Status:
+                        row.Volunteer_Status,
 
-                        Location:
-                            row.Volunteer_Location,
+                    Location:
+                        row.Volunteer_Location,
 
-                        Assignment_Status:
-                            row.Assignment_Status
+                    Assignment_Status:
+                        row.Assignment_Status
 
-                    })
-                );
-
-
-            console.log("[pHash API DEBUG]", {
-                file: __filename,
-                cwd: process.cwd(),
-                reportId,
-                possibleDuplicate: reportData.PossibleDuplicate
-            });
-
-
-            // ==========================================
-            // FINAL RESPONSE
-            // ==========================================
-
-            return res.status(200).json(
-                reportData
-            );
-
-        }
-        catch (error) {
-
-            console.error(
-                "Get Report Error:",
-                error
+                })
             );
 
 
-            return res.status(500).json({
+        console.log("[pHash API DEBUG]", {
+            file: __filename,
+            cwd: process.cwd(),
+            reportId,
+            possibleDuplicate: reportData.PossibleDuplicate
+        });
 
-                message:
-                    "Server Error"
 
-            });
+        // ==========================================
+        // FINAL RESPONSE
+        // ==========================================
 
-        }
+        return res.status(200).json(
+            reportData
+        );
 
     }
+    catch (error) {
+
+        console.error(
+            "Get Report Error:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            message:
+                "Server Error"
+
+        });
+
+    }
+
+}
 );
 
 
