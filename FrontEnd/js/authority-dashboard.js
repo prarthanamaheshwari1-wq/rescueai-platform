@@ -965,15 +965,11 @@ async function assignVolunteer(reportId) {
         }
 
 
-        const selectedVolunteerId =
-            parseInt(
-                volunteerId,
-                10
-            );
-
+        const selectedVolunteerId = Number(volunteerId.trim());
 
         if (
-            isNaN(selectedVolunteerId)
+            !Number.isSafeInteger(selectedVolunteerId) ||
+            selectedVolunteerId <= 0
         ) {
 
             alert(
