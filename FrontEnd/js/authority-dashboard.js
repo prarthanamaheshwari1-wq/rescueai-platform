@@ -1,5 +1,14 @@
 console.log("Authority Dashboard Loaded");
 
+function escapeHTML(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
 // Automatically matches whatever hostname the user uses (localhost or 127.0.0.1)
 const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000/api`;
 
@@ -176,20 +185,20 @@ async function loadReports() {
                     </td>
 
                     <td>
-                        ${report.Category || "N/A"}
+                        ${escapeHTML(report.Category || "N/A")}
                     </td>
 
                     <td>
-                        ${report.Severity || "N/A"}
+                        ${escapeHTML(report.Severity || "N/A")}
                     </td>
 
                     <td>
-                        ${report.Location_Name || "N/A"}
+                        ${escapeHTML(report.Location_Name || "N/A")}
                     </td>
 
                     <td>
-                        <span class="status ${statusClass}">
-                            ${status}
+                        <span class="status ${escapeHTML(statusClass)}">
+                            ${escapeHTML(status)}
                         </span>
                     </td>
 
@@ -454,21 +463,21 @@ async function loadAlerts() {
                 <div class="card">
 
                     <h3>
-                        ⚠ ${alert.Title || "Alert"}
+                        ⚠ ${escapeHTML(alert.Title || "Alert")}
                     </h3>
 
                     <p>
-                        ${alert.Description || "No description available."}
+                        ${escapeHTML(alert.Description || "No description available.")}
                     </p>
 
                     <p>
                         <strong>Location:</strong>
-                        ${alert.Location_Name || "N/A"}
+                        ${escapeHTML(alert.Location_Name || "N/A")}
                     </p>
 
                     <p>
                         <strong>Severity:</strong>
-                        ${alert.Severity || "N/A"}
+                        ${escapeHTML(alert.Severity || "N/A")}
                     </p>
 
                     <button
