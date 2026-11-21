@@ -12,7 +12,18 @@ console.log("Volunteer Dashboard Loaded");
 const API_BASE =
     `${window.location.protocol}//${window.location.hostname}:5000/api`;
 
-
+function escapeHTML(value) {
+    return String(value ?? "N/A").replace(
+        /[&<>"']/g,
+        character => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        })[character]
+    );
+}
 // ==========================================
 // AUTHENTICATED FETCH
 // ==========================================
@@ -152,98 +163,25 @@ async function loadVolunteers() {
         container.innerHTML = "";
 
 
-        volunteers.forEach(
-            volunteer => {
+        volunteers.forEach(volunteer => {
+            container.innerHTML += `
+        <div class="volunteer-card">
+            <h2>${escapeHTML(volunteer.Full_Name)}</h2>
 
-                container.innerHTML += `
+            <p><strong>Skill:</strong> ${escapeHTML(volunteer.Skills || "N/A")}</p>
 
-                    <div class="volunteer-card">
+            <p><strong>Email:</strong> ${escapeHTML(volunteer.Email || "N/A")}</p>
 
-                        <h2>
-                            ${volunteer.Full_Name}
-                        </h2>
+            <p><strong>Role:</strong> ${escapeHTML(volunteer.Role || "N/A")}</p>
 
+            <p><strong>Phone:</strong> ${escapeHTML(volunteer.Phone_No || "N/A")}</p>
 
-                        <p>
+            <p><strong>Location:</strong> ${escapeHTML(volunteer.Location_Name || "N/A")}</p>
 
-                            <strong>
-                                Skill:
-                            </strong>
-
-                            ${volunteer.Skills ||
-                    "N/A"
-                    }
-
-                        </p>
-
-
-                        <p>
-
-                            <strong>
-                                Email:
-                            </strong>
-
-                            ${volunteer.Email ||
-                    "N/A"
-                    }
-
-                        </p>
-
-
-                        
-                        <p>
-                            <strong>Role:</strong>
-                            ${volunteer.Role ||
-                                "N/A"
-                            }
-                        </p>
-
-
-
-                        <p>
-
-                            <strong>
-                                Phone:
-                            </strong>
-
-                            ${volunteer.Phone_No ||
-                    "N/A"
-                    }
-
-                        </p>
-
-
-                        <p>
-
-                            <strong>
-                                Location:
-                            </strong>
-
-                            ${volunteer.Location_Name ||
-                    "N/A"
-                    }
-
-                        </p>
-
-
-                        <p>
-
-                            <strong>
-                                Status:
-                            </strong>
-
-                            ${volunteer.Availability ||
-                    "N/A"
-                    }
-
-                        </p>
-
-                    </div>
-
-                `;
-
-            }
-        );
+            <p><strong>Status:</strong> ${escapeHTML(volunteer.Availability || "N/A")}</p>
+        </div>
+    `;
+        });
 
 
     } catch (error) {
