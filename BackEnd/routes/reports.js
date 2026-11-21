@@ -1966,9 +1966,22 @@ router.get("/:reportId", authenticateToken, authorizeRoles("authority"), async (
                     },
 
                     Image_Source_Verification: (() => {
-                        const parsedMatches = firstRow.Image_Source_Matches
-                            ? JSON.parse(firstRow.Image_Source_Matches)
-                            : [];
+                        let parsedMatches = [];
+
+                        try {
+                            parsedMatches = firstRow.Image_Source_Matches
+                                ? JSON.parse(firstRow.Image_Source_Matches)
+                                : [];
+
+                            if (!Array.isArray(parsedMatches)) {
+                                parsedMatches = [];
+                            }
+                        } catch (error) {
+                            console.warn(
+                                "[Report Details] Invalid Image_Source_Matches JSON:",
+                                error.message
+                            );
+                        }
                         const socialMatches = parsedMatches
                             .map((m) => {
                                 const platform = matchSocialNetworkingSite(m?.url);
