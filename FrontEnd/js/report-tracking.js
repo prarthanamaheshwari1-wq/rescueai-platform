@@ -312,9 +312,20 @@ document.addEventListener("DOMContentLoaded", () => {
                         </strong>
 
                         ${data.Created_At
-                        ? new Date(
-                            data.Created_At
-                        ).toLocaleString()
+                        ? (() => {
+                            const safeString = String(data.Created_At)
+                                .trim()
+                                .replace(" ", "T")
+                                .replace(/(Z|[+-]\d{2}:\d{2})$/, "");
+
+                            const date = new Date(safeString);
+
+                            return isNaN(date.getTime())
+                                ? "N/A"
+                                : date.toLocaleString("en-IN", {
+                                    timeZone: "Asia/Kolkata"
+                                });
+                        })()
                         : "N/A"
                     }
 
@@ -411,7 +422,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     );
 
-    
+
     // ==========================================
     // LOAD PUBLIC DISASTER REPORT FEED
     // ==========================================
@@ -512,7 +523,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 addDetail(
                     "Reported",
                     report.Created_At
-                        ? new Date(report.Created_At).toLocaleString()
+                        ? (() => {
+                            const safeString = String(report.Created_At)
+                                .trim()
+                                .replace(" ", "T")
+                                .replace(/(Z|[+-]\d{2}:\d{2})$/, "");
+
+                            const date = new Date(safeString);
+
+                            return isNaN(date.getTime())
+                                ? "N/A"
+                                : date.toLocaleString("en-IN", {
+                                    timeZone: "Asia/Kolkata"
+                                });
+                        })()
                         : "N/A"
                 );
 

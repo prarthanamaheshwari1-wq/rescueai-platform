@@ -12,14 +12,18 @@ const validReportId =
 function formatDate(dateString) {
     if (!dateString) return "N/A";
 
-    // Replaces space between date and time with 'T' for clean cross-browser parsing
     let safeString = String(dateString).trim().replace(" ", "T");
 
-    // Remove any trailing 'Z' or offset if present to force local interpretation
+    // Treat SQL Server's timezone-less timestamp as local time.
     safeString = safeString.replace(/(Z|[+-]\d{2}:\d{2})$/, "");
 
     const date = new Date(safeString);
-    return isNaN(date.getTime()) ? "N/A" : date.toLocaleString();
+
+    return isNaN(date.getTime())
+        ? "N/A"
+        : date.toLocaleString("en-IN", {
+            timeZone: "Asia/Kolkata"
+        });
 }
 
 // Safely escape untrusted text before inserting it into HTML.
