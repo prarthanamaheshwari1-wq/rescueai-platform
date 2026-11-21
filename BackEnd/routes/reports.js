@@ -2833,18 +2833,6 @@ router.post(
             // CHECK EXISTING ACTIVE ASSIGNMENT FOR THIS REPORT
             // ==========================================
 
-            const checkRequest = new sql.Request(transaction);
-            checkRequest.input("ReportId", sql.Int, reportId);
-            checkRequest.input("VolunteerId", sql.Int, volunteerId);
-
-            const existingAssignment = await checkRequest.query(`
-                SELECT Assignment_id
-                FROM Resource_Assignments WITH (UPDLOCK, HOLDLOCK) -- or Volunteer_Assignments
-                WHERE Report_id = @ReportId
-                  AND Volunteer_id = @VolunteerId
-                  AND LOWER(LTRIM(RTRIM(Status))) = 'active'
-            `).catch(() => ({ recordset: [] })); // Fallback if table name mismatch
-
             const checkVolRequest = new sql.Request(transaction);
             checkVolRequest.input("ReportId", sql.Int, reportId);
             checkVolRequest.input("VolunteerId", sql.Int, volunteerId);
