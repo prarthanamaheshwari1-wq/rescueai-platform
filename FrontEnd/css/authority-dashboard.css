@@ -167,6 +167,25 @@ h1 {
 }
 
 
+/* Dashboard Loading Messages */
+
+.dashboard-message {
+    margin: 12px 0 20px;
+    padding: 12px 16px;
+    background: rgba(255, 122, 122, 0.08);
+    color: var(--danger);
+    border: 1px solid rgba(255, 122, 122, 0.35);
+    border-left: 4px solid var(--danger);
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.dashboard-message[hidden] {
+    display: none;
+}
+
+
 /* ========================================
    Alerts Container and Alert Cards
 ======================================== */
@@ -266,11 +285,9 @@ td select {
 ======================================== */
 
 button {
-    background: linear-gradient(
-        135deg,
-        var(--accent),
-        var(--accent-2)
-    );
+    background: linear-gradient(135deg,
+            var(--accent),
+            var(--accent-2));
     color: #ffffff;
     border: 1px solid rgba(110, 175, 255, 0.35);
     padding: 8px 14px;
@@ -459,6 +476,7 @@ select option {
 ======================================== */
 
 @media (prefers-reduced-motion: reduce) {
+
     *,
     *::before,
     *::after {

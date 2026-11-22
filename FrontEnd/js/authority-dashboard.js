@@ -9,6 +9,17 @@ function escapeHTML(value) {
         .replace(/'/g, "&#39;");
 }
 
+function showDashboardMessage(elementId, message) {
+    const element = document.getElementById(elementId);
+
+    if (!element) {
+        return;
+    }
+
+    element.textContent = message;
+    element.hidden = !message;
+}
+
 // Automatically matches whatever hostname the user uses (localhost or 127.0.0.1)
 const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000/api`;
 
@@ -116,6 +127,7 @@ async function loadReports() {
         }
 
         const reports = await response.json();
+        showDashboardMessage("reportsLoadMessage", "");
 
         // ==========================================
         // UPDATE REPORT COUNTS
@@ -376,6 +388,11 @@ async function loadReports() {
             error
         );
 
+        showDashboardMessage(
+            "reportsLoadMessage",
+            "Reports could not be loaded. Please refresh the dashboard or try again later."
+        );
+
     }
 
 }
@@ -415,6 +432,8 @@ async function loadAlerts() {
 
         const alerts =
             await response.json();
+
+        showDashboardMessage("alertsLoadMessage", "");
 
 
         console.log(
@@ -496,6 +515,11 @@ async function loadAlerts() {
         console.error(
             "Load Alerts Error:",
             error
+        );
+
+        showDashboardMessage(
+            "alertsLoadMessage",
+            "Active alerts could not be loaded. Please try again later."
         );
 
     }
