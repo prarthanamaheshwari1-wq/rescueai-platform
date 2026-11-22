@@ -17,7 +17,10 @@
 }
 
 /* RESET */
-* {
+/* RESET */
+*,
+*::before,
+*::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -29,13 +32,21 @@ html {
     color-scheme: dark;
 }
 
+html {
+    min-height: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+    color-scheme: dark;
+}
+
 body {
     font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
     background: var(--bg);
     color: var(--text);
+    max-width: 100%;
     min-height: 100vh;
     min-height: 100dvh;
-    overflow-x: hidden;
+    overflow-x: clip;
 }
 
 .page {
@@ -144,11 +155,9 @@ body {
 /* CARDS */
 .card {
     position: relative;
-    background: linear-gradient(
-        145deg,
-        rgba(10, 24, 58, 0.88),
-        var(--card)
-    );
+    background: linear-gradient(145deg,
+            rgba(10, 24, 58, 0.88),
+            var(--card));
     border: 1px solid var(--border);
     border-radius: 18px;
     padding: 28px;
@@ -166,12 +175,10 @@ body {
     left: 12%;
     width: 76%;
     height: 1px;
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(123, 195, 255, 0.65),
-        transparent
-    );
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(123, 195, 255, 0.65),
+            transparent);
 }
 
 /* SECTION HEADING */
@@ -226,7 +233,9 @@ input,
 select,
 textarea {
     width: 100%;
+    max-width: 100%;
     min-width: 0;
+    min-height: 44px;
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 13px 14px;
@@ -310,7 +319,12 @@ textarea {
 }
 
 .location-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+    max-width: 100%;
+    min-height: 44px;
     border: 1px solid rgba(110, 190, 255, 0.25);
     background: linear-gradient(100deg, #2789ed, #4daaff);
     color: white;
@@ -534,7 +548,7 @@ footer {
 
 /* UTILITY */
 .hidden {
-    display: none !important;
+    display: none;
 }
 
 /* KEYBOARD ACCESSIBILITY */
@@ -585,7 +599,8 @@ textarea:focus-visible {
     }
 
     .location-content {
-        min-width: 150px;
+        flex: 1 1 180px;
+        min-width: 0;
     }
 
     .location-button {
@@ -597,12 +612,14 @@ textarea:focus-visible {
     }
 
     .photo-info {
-        min-width: 120px;
+        flex: 1 1 140px;
+        min-width: 0;
     }
 }
 
 /* REDUCED MOTION */
 @media (prefers-reduced-motion: reduce) {
+
     *,
     *::before,
     *::after {

@@ -19,6 +19,18 @@
    Base Page Styling
 ======================================== */
 
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    max-width: 100%;
+    overflow-x: clip;
+}
+
 body {
     font-family: Arial, sans-serif;
     background: var(--bg);
@@ -138,10 +150,11 @@ h1 {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-sizing: border-box;
-    width: 220px;
-    min-height: 70px;
-    padding: 15px;
+    flex: 0 1 220px;
+    width: auto;
+    max-width: 100%;
+    min-height: 56px;
+    padding: 14px 16px;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -198,8 +211,8 @@ h1 {
 }
 
 #alertsContainer .card {
-    box-sizing: border-box;
-    width: 300px;
+    flex: 1 1 280px;
+    min-width: 0;
     max-width: 100%;
     background: rgba(255, 122, 122, 0.08);
     color: var(--text);
@@ -226,15 +239,28 @@ h1 {
    Reports Table
 ======================================== */
 
+.reports-table-scroll {
+    width: 100%;
+    max-width: 100%;
+    margin-top: 20px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 12px;
+}
+
+.reports-table-scroll:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
 table {
     width: 100%;
-    margin-top: 20px;
+    min-width: 680px;
+    margin-top: 0;
     border-collapse: collapse;
     background: var(--card);
     color: var(--text);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
     box-shadow: var(--shadow);
 }
 
@@ -285,6 +311,11 @@ td select {
 ======================================== */
 
 button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    max-width: 100%;
     background: linear-gradient(135deg,
             var(--accent),
             var(--accent-2));
@@ -411,15 +442,18 @@ select option {
     }
 
     .action-btn {
-        width: 100%;
-        max-width: 320px;
-        font-size: 16px;
+        flex: 1 1 calc(50% - 6px);
+        min-width: 0;
+        width: auto;
+        min-height: 52px;
+        font-size: 15px;
+        text-align: center;
     }
 }
 
 @media (max-width: 420px) {
     .stats-container {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -458,10 +492,13 @@ select option {
         width: 100%;
     }
 
-    table {
-        display: block;
-        overflow-x: auto;
-        white-space: nowrap;
+    .reports-table-scroll table {
+        min-width: 640px;
+    }
+
+    .action-btn {
+        flex: 1 1 100%;
+        min-height: 48px;
     }
 
     th,

@@ -14,22 +14,30 @@
     --shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
 }
 
-* {
+*,
+*::before,
+*::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+body {
     font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
 }
 
 html {
     min-height: 100%;
+    max-width: 100%;
+    overflow-x: clip;
     color-scheme: dark;
 }
 
 body {
     min-height: 100vh;
     min-height: 100dvh;
-    overflow-x: hidden;
+    max-width: 100%;
+    overflow-x: clip;
     background: var(--bg);
     color: var(--text);
 }
@@ -64,7 +72,7 @@ header p {
     width: min(1200px, calc(100% - 40px));
     margin: 35px auto;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
     gap: 24px;
 }
 
@@ -75,11 +83,9 @@ header p {
     min-width: 0;
     padding: 28px;
     overflow: hidden;
-    background: linear-gradient(
-        145deg,
-        rgba(10, 24, 58, 0.88),
-        var(--card)
-    );
+    background: linear-gradient(145deg,
+            rgba(10, 24, 58, 0.88),
+            var(--card));
     border: 1px solid var(--border);
     border-radius: 20px;
     box-shadow: var(--shadow);
@@ -99,12 +105,10 @@ header p {
     left: 12%;
     width: 76%;
     height: 1px;
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(123, 195, 255, 0.75),
-        transparent
-    );
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(123, 195, 255, 0.75),
+            transparent);
 }
 
 .card:hover {
@@ -120,12 +124,14 @@ header p {
     color: var(--accent);
     font-size: 1.45rem;
     line-height: 1.35;
+    overflow-wrap: break-word;
 }
 
 .card p {
     color: var(--muted);
     font-size: 0.98rem;
     line-height: 1.75;
+    overflow-wrap: break-word;
 }
 
 /* Links and Buttons Inside Cards */
@@ -141,6 +147,11 @@ header p {
 }
 
 .card button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    max-width: 100%;
     margin-top: 20px;
     padding: 12px 20px;
     border: 1px solid transparent;
@@ -180,25 +191,30 @@ header p {
 
 @media (max-width: 600px) {
     header {
-        padding: 22px 18px;
+        padding: 20px 14px;
     }
 
     .dashboard-container {
-        width: calc(100% - 28px);
-        margin: 24px auto;
+        width: calc(100% - 24px);
+        margin: 20px auto;
         grid-template-columns: 1fr;
-        gap: 18px;
+        gap: 16px;
     }
 
     .card {
-        padding: 23px;
-        border-radius: 17px;
+        padding: 18px;
+        border-radius: 16px;
+    }
+
+    .card h2 {
+        font-size: 1.25rem;
     }
 }
 
 /* Reduced Motion Accessibility */
 
 @media (prefers-reduced-motion: reduce) {
+
     *,
     *::before,
     *::after {

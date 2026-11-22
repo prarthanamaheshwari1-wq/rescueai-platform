@@ -18,7 +18,9 @@
 }
 
 /* GLOBAL */
-* {
+*,
+*::before,
+*::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -26,6 +28,8 @@
 
 html {
     min-height: 100%;
+    max-width: 100%;
+    overflow-x: clip;
     color-scheme: dark;
 }
 
@@ -33,9 +37,10 @@ body {
     font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
     background: var(--bg);
     color: var(--text);
+    max-width: 100%;
     min-height: 100vh;
     padding: 20px;
-    overflow-x: hidden;
+    overflow-x: clip;
 }
 
 .container {
@@ -60,9 +65,11 @@ body {
     justify-content: center;
     flex: 1 1 0;
     min-width: 0;
+    min-height: 44px;
     margin: 0;
     padding: 12px 10px;
     white-space: normal;
+    overflow-wrap: anywhere;
     text-align: center;
     line-height: 1.5;
 }
@@ -176,6 +183,7 @@ h1 {
     justify-content: center;
     width: fit-content;
     max-width: 100%;
+    min-height: 44px;
     margin: 0 10px 20px 0;
     padding: 12px 24px;
     background: linear-gradient(100deg, #2789ed, #4daaff);
@@ -187,7 +195,6 @@ h1 {
     border-radius: 10px;
     box-shadow: 0 8px 22px rgba(39, 137, 237, 0.18);
     vertical-align: middle;
-    white-space: nowrap;
     transition: filter 180ms ease, transform 180ms ease;
 }
 
@@ -258,6 +265,8 @@ h1 {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    max-width: 100%;
+    min-height: 44px;
     margin: 0 0 20px 0;
     padding: 11px 22px;
     background: linear-gradient(100deg, #5941d8, #8068ff);
@@ -269,10 +278,8 @@ h1 {
     cursor: pointer;
     box-shadow: 0 8px 22px rgba(108, 77, 255, 0.18);
     vertical-align: middle;
-    white-space: nowrap;
     transition: filter 180ms ease, transform 180ms ease;
 }
-
 
 .refresh-btn:hover {
     filter: brightness(1.1);
@@ -363,7 +370,9 @@ button:focus-visible {
 ============================== */
 
 @media (max-width: 900px) {
-    .stats-container {
+
+    .stats-container,
+    .risk-container {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
@@ -439,7 +448,7 @@ button:focus-visible {
 
 #disasterEventsContainer {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
     gap: 18px;
 }
 

@@ -14,16 +14,23 @@
     --border: rgba(110, 175, 255, 0.28);
 }
 
-* {
+*,
+*::before,
+*::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+body {
     font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
 }
 
 html,
 body {
     min-height: 100%;
+    max-width: 100%;
+    overflow-x: clip;
 }
 
 body {
@@ -121,8 +128,13 @@ body {
 }
 
 @keyframes twinkle {
-    from { opacity: 0.35; }
-    to   { opacity: 1; }
+    from {
+        opacity: 0.35;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 /* Soft blue glow in the corner */
@@ -134,16 +146,25 @@ body {
     top: 14%;
     border-radius: 50%;
     background: radial-gradient(circle,
-        rgba(110, 190, 255, 0.4) 0%,
-        rgba(60, 120, 255, 0.14) 40%,
-        transparent 70%);
+            rgba(110, 190, 255, 0.4) 0%,
+            rgba(60, 120, 255, 0.14) 40%,
+            transparent 70%);
     filter: blur(14px);
     animation: lightPulse 6s ease-in-out infinite;
 }
 
 @keyframes lightPulse {
-    0%, 100% { transform: scale(0.9); opacity: 0.6; }
-    50%      { transform: scale(1.1); opacity: 1; }
+
+    0%,
+    100% {
+        transform: scale(0.9);
+        opacity: 0.6;
+    }
+
+    50% {
+        transform: scale(1.1);
+        opacity: 1;
+    }
 }
 
 /* =========================================
@@ -197,8 +218,13 @@ body {
 }
 
 @keyframes spin {
-    from { background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0; }
-    to   { background-position: 200% 0, 200% 0, 200% 0, 200% 0, 200% 0, 200% 0, 0 0; }
+    from {
+        background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;
+    }
+
+    to {
+        background-position: 200% 0, 200% 0, 200% 0, 200% 0, 200% 0, 200% 0, 0 0;
+    }
 }
 
 .earth-atmosphere {
@@ -213,8 +239,15 @@ body {
 }
 
 @keyframes atmosphere {
-    0%, 100% { opacity: 0.55; }
-    50%      { opacity: 1; }
+
+    0%,
+    100% {
+        opacity: 0.55;
+    }
+
+    50% {
+        opacity: 1;
+    }
 }
 
 /* =========================================
@@ -259,6 +292,7 @@ header p {
 .login-card {
     width: 100%;
     max-width: 400px;
+    min-width: 0;
     padding: 32px;
     border-radius: 20px;
     background: var(--card);
@@ -303,6 +337,8 @@ header p {
 #loginForm input,
 #loginForm select {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
     padding: 13px 14px;
     margin-bottom: 16px;
     border-radius: 10px;
@@ -401,8 +437,17 @@ header p {
 }
 
 @media (max-width: 500px) {
+    .login-container {
+        padding: 16px 12px 32px;
+    }
+
     .login-card {
-        padding: 24px 20px;
+        padding: 20px 16px;
+        border-radius: 16px;
+    }
+
+    .login-card h2 {
+        font-size: 22px;
     }
 
     header p {
@@ -411,6 +456,7 @@ header p {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
     *,
     *::before,
     *::after {
