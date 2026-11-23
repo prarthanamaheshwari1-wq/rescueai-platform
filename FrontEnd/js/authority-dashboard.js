@@ -640,50 +640,63 @@ async function assignResource(reportId) {
 
     try {
 
+
         // ==========================================
         // GET AI RESOURCE RECOMMENDATIONS
         // ==========================================
 
-        const recommendationResponse =
-            await authenticatedFetch(
-                `${API_BASE}/resources/recommendations/${reportId}`,
-                {
-                    cache: "no-store"
-                }
-            );
+        try {
+            const recommendationResponse =
+                await authenticatedFetch(
+                    `${API_BASE}/resources/recommendations/${reportId}`,
+                    {
+                        cache: "no-store"
+                    }
+                );
 
-
-        if (recommendationResponse.ok) {
+            if (!recommendationResponse.ok) {
+                throw new Error(
+                    `Recommendation API Error: ${recommendationResponse.status}`
+                );
+            }
 
             const recommendationData =
                 await recommendationResponse.json();
 
-
             const recommendations =
                 recommendationData.recommendations || [];
 
-
             const recommendedTypes =
                 recommendations
-                    .map(
-                        item =>
-                            item.resourceType
-                    )
+                    .map(item => item.resourceType)
                     .filter(Boolean)
                     .join(", ");
 
-
             if (recommendedTypes) {
-
                 alert(
                     "AI Resource Recommendation:\n\n" +
                     recommendedTypes +
                     "\n\nYou can now choose a resource from the available list."
                 );
-
+            } else {
+                alert(
+                    "AI recommendations are currently unavailable for this incident.\n\n" +
+                    "You can still manually select an available resource."
+                );
             }
 
+        } catch (recommendationError) {
+            console.warn(
+                "AI Resource Recommendations Unavailable:",
+                recommendationError
+            );
+
+            alert(
+                "AI recommendations could not be loaded.\n\n" +
+                "You can still manually select an available resource."
+            );
         }
+
 
 
         // ==========================================
