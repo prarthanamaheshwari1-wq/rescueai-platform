@@ -93,34 +93,104 @@ function getRecommendedResourceTypes(category, severity) {
 }
 
 
-function getAvailableResourceRecommendations(resources, recommendedTypes) {
+function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+    const toRadians = degrees => degrees * (Math.PI / 180);
+
+    const latitudeDifference = toRadians(lat2 - lat1);
+    const longitudeDifference = toRadians(lon2 - lon1);
+
+    const a =
+        Math.sin(latitudeDifference / 2) ** 2 +
+        Math.cos(toRadians(lat1)) *
+        Math.cos(toRadians(lat2)) *
+        Math.sin(longitudeDifference / 2) ** 2;
+
+    const centralAngle = 2 * Math.atan2(
+        Math.sqrt(a),
+        Math.sqrt(1 - a)
+    );
+
+    return 6371 * centralAngle;
+}
+
+function getAvailableResourceRecommendations(
+    resources,
+    recommendedTypes,
+    incidentLatitude,
+    incidentLongitude
+) {
+    const hasIncidentCoordinates =
+        Number.isFinite(Number(incidentLatitude)) &&
+        Number.isFinite(Number(incidentLongitude)) &&
+        incidentLatitude !== null &&
+        incidentLongitude !== null &&
+        String(incidentLatitude).trim() !== "" &&
+        String(incidentLongitude).trim() !== "";
 
     return recommendedTypes
         .map(type => {
-
-            const matchingResources = resources.filter(
-                resource =>
+            const matchingResources = resources
+                .filter(resource =>
                     String(resource.Resource_Type || "").trim().toLowerCase() ===
                     String(type || "").trim().toLowerCase()
-            );
+                )
+                .filter(resource =>
+                    Number(resource.Quantity || 0) > 0 &&
+                    String(resource.Status || "").trim().toLowerCase() ===
+                    "available"
+                )
+                .map(resource => {
+                    const latitude = Number(resource.Latitude);
+                    const longitude = Number(resource.Longitude);
 
-            const availableResources = matchingResources.filter(
-                resource =>
-                    Number(resource.Quantity || 0) > 0
-            );
+                    const hasResourceCoordinates =
+                        resource.Latitude !== null &&
+                        resource.Latitude !== undefined &&
+                        resource.Longitude !== null &&
+                        resource.Longitude !== undefined &&
+                        String(resource.Latitude).trim() !== "" &&
+                        String(resource.Longitude).trim() !== "" &&
+                        Number.isFinite(latitude) &&
+                        Number.isFinite(longitude);
+
+                    const distanceKm =
+                        hasIncidentCoordinates && hasResourceCoordinates
+                            ? calculateDistanceKm(
+                                Number(incidentLatitude),
+                                Number(incidentLongitude),
+                                latitude,
+                                longitude
+                            )
+                            : null;
+
+                    return {
+                        ...resource,
+                        distanceKm
+                    };
+                });
+
+            matchingResources.sort((a, b) => {
+                if (a.distanceKm === null) return 1;
+                if (b.distanceKm === null) return -1;
+
+                return a.distanceKm - b.distanceKm;
+            });
 
             return {
                 resourceType: type,
-                resources: availableResources
+                resources: matchingResources
             };
         })
-        .filter(
-            recommendation =>
-                recommendation.resources.length > 0
+        .filter(recommendation =>
+            recommendation.resources.length > 0
         );
 }
-
-async function getResourceRecommendations(category, severity) {
+async function getResourceRecommendations(
+    category,
+    severity,
+    incidentLatitude,
+    incidentLongitude
+) {
 
     const recommendedTypes =
         getRecommendedResourceTypes(category, severity);
@@ -142,7 +212,9 @@ async function getResourceRecommendations(category, severity) {
 
     return getAvailableResourceRecommendations(
         result.recordset,
-        recommendedTypes
+        recommendedTypes,
+        incidentLatitude,
+        incidentLongitude
     );
 }
 

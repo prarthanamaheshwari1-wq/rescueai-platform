@@ -104,35 +104,35 @@ router.get(
     authorizeRoles("authority"),
     async (req, res) => {
 
-    try {
+        try {
 
-        const request = new sql.Request();
+            const request = new sql.Request();
 
-        const result = await request.query(`
+            const result = await request.query(`
             SELECT *
             FROM Resources
             ORDER BY Resource_id DESC
         `);
 
-        res.status(200).json(
-            result.recordset
-        );
+            res.status(200).json(
+                result.recordset
+            );
 
-    }
-    catch (error) {
+        }
+        catch (error) {
 
-        console.error(
-            "Resources Error:",
-            error
-        );
+            console.error(
+                "Resources Error:",
+                error
+            );
 
-        res.status(500).json({
-            message: "Server Error"
-        });
+            res.status(500).json({
+                message: "Server Error"
+            });
 
-    }
+        }
 
-});
+    });
 
 
 // ==========================================
@@ -391,10 +391,10 @@ router.get("/recommendations/:reportId", authenticateToken, authorizeRoles("auth
             SELECT
                 Report_id,
                 Category,
-                Severity
-
+                Severity,
+                Latitude,
+                Longitude
             FROM Incident_Reports
-
             WHERE Report_id = @ReportId
 
         `);
@@ -421,7 +421,9 @@ router.get("/recommendations/:reportId", authenticateToken, authorizeRoles("auth
         const recommendations =
             await getResourceRecommendations(
                 report.Category,
-                report.Severity
+                report.Severity,
+                report.Latitude,
+                report.Longitude
             );
 
 
