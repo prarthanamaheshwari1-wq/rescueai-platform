@@ -2215,6 +2215,8 @@ router.put(
     authorizeRoles("authority", "responder"),
     async (req, res) => {
 
+        let resourceTransaction = null;
+
         try {
 
             console.log(
@@ -2318,8 +2320,24 @@ router.put(
             // CHECK REPORT EXISTS
             // ==========================================
 
+            const closesReport =
+                status === "Resolved" ||
+                status === "Rejected";
+
+            resourceTransaction = closesReport
+                ? new sql.Transaction()
+                : null;
+
+            if (resourceTransaction) {
+                await resourceTransaction.begin(
+                    sql.ISOLATION_LEVEL.SERIALIZABLE
+                );
+            }
+
             const request =
-                new sql.Request();
+                resourceTransaction
+                    ? new sql.Request(resourceTransaction)
+                    : new sql.Request();
 
 
             request.input(
@@ -2358,15 +2376,14 @@ router.put(
                 `);
 
 
-            if (
-                result.recordset.length === 0
-            ) {
+            if (result.recordset.length === 0) {
+
+                if (resourceTransaction) {
+                    await resourceTransaction.rollback();
+                }
 
                 return res.status(404).json({
-
-                    message:
-                        "Report not found."
-
+                    message: "Report not found."
                 });
 
             }
@@ -2378,16 +2395,8 @@ router.put(
             // RESTORE RESOURCE QUANTITY WHEN REPORT CLOSES
             // ==========================================
 
-            if (
-                status === "Resolved" ||
-                status === "Rejected"
-            ) {
-                const resourceTransaction = new sql.Transaction();
-
+            if (closesReport) {
                 try {
-                    await resourceTransaction.begin(
-                        sql.ISOLATION_LEVEL.SERIALIZABLE
-                    );
 
                     const restoreRequest =
                         new sql.Request(resourceTransaction);
@@ -2433,20 +2442,12 @@ router.put(
                           AND LOWER(LTRIM(RTRIM(Status))) = 'active';
                     `);
 
-                    await resourceTransaction.commit();
                 } catch (resourceError) {
-                    try {
-                        await resourceTransaction.rollback();
-                    } catch (rollbackError) {
-                        console.error(
-                            "Resource rollback failed:",
-                            rollbackError.message
-                        );
-                    }
-
                     throw resourceError;
                 }
             }
+
+
 
 
 
@@ -2454,16 +2455,12 @@ router.put(
             // RELEASE VOLUNTEER WHEN RESOLVED
             // ==========================================
 
-            if (
-                status === "Resolved"
-            ) {
-
+            if (closesReport) {
                 // ==========================================
                 // FIND ACTIVE VOLUNTEERS
                 // ==========================================
 
-                const releaseRequest =
-                    new sql.Request();
+                const releaseRequest = new sql.Request(resourceTransaction);
 
 
                 releaseRequest.input(
@@ -2494,8 +2491,7 @@ router.put(
                 // COMPLETE ASSIGNMENTS
                 // ==========================================
 
-                const completeRequest =
-                    new sql.Request();
+                const completeRequest = new sql.Request(resourceTransaction);
 
 
                 completeRequest.input(
@@ -2530,8 +2526,7 @@ router.put(
                     of assignedVolunteers.recordset
                 ) {
 
-                    const volunteerRequest =
-                        new sql.Request();
+                    const volunteerRequest = new sql.Request(resourceTransaction);
 
 
                     volunteerRequest.input(
@@ -2557,6 +2552,10 @@ router.put(
 
             }
 
+            if (resourceTransaction) {
+                await resourceTransaction.commit();
+            }
+
 
             console.log(
                 "UPDATED REPORT:",
@@ -2577,21 +2576,29 @@ router.put(
         }
         catch (error) {
 
+            if (resourceTransaction) {
+                try {
+                    if (resourceTransaction._aborted !== true) {
+                        await resourceTransaction.rollback();
+                    }
+                } catch (rollbackError) {
+                    console.error(
+                        "Status transaction rollback failed:",
+                        rollbackError.message
+                    );
+                }
+            }
+
             console.error(
                 "Update Status Error:",
                 error
             );
 
-
             return res.status(500).json({
-
-                message:
-                    "Server Error"
-
+                message: "Server Error"
             });
 
         }
-
     }
 );
 
