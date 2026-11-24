@@ -6,6 +6,9 @@ const dbPath = require.resolve("../config/db");
 const authPath = require.resolve("../middleware/auth");
 
 let queryError = null;
+let queryResult = {
+    recordset: [{ Assignment_id: 101 }]
+};
 let capturedInputs = [];
 let capturedQuery = "";
 
@@ -22,9 +25,7 @@ class MockRequest {
             throw queryError;
         }
 
-        return {
-            recordset: [{ Assignment_id: 101 }]
-        };
+        return queryResult;
     }
 }
 
