@@ -1,5 +1,15 @@
 console.log("report-tracking.js loaded");
 
+function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[character]);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
 
     const trackBtn =
@@ -161,29 +171,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 let photoUrl = null;
 
-
                 if (data.Photo_Path) {
+                    const normalizedPath = String(data.Photo_Path)
+                        .replace(/\\/g, "/");
 
-                    const normalizedPath =
-                        data.Photo_Path.replace(
-                            /\\/g,
-                            "/"
-                        );
+                    const filename = normalizedPath.split("/").pop();
 
-
-                    const filename =
-                        normalizedPath
-                            .split("/")
-                            .pop();
-
-
-                    if (filename) {
-
+                    if (
+                        filename &&
+                        filename !== "." &&
+                        filename !== ".." &&
+                        /^[a-zA-Z0-9._-]+$/.test(filename)
+                    ) {
                         photoUrl =
-                            `${window.location.protocol}//${window.location.hostname}:5000/uploads/${filename}`;
+                            `${window.location.protocol}//${window.location.hostname}:5000/uploads/${encodeURIComponent(filename)}`;
                     }
                 }
-
 
                 // ==========================================
                 // DISPLAY REPORT
@@ -192,7 +195,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 reportResult.innerHTML = `
 
                     <h2>
-                        Report #${data.Report_id}
+                        Report ${escapeHTML(data.Report_id)}
                     </h2>
 
 
@@ -202,7 +205,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             Title:
                         </strong>
 
-                        ${data.Title || "N/A"}
+                        	${escapeHTML(data.Title || "N/A")}
 
                     </p>
 
@@ -213,7 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             Description:
                         </strong>
 
-                        ${data.Description || "N/A"}
+                        	${escapeHTML(data.Description || "N/A")}
 
                     </p>
 
@@ -224,7 +227,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             Category:
                         </strong>
 
-                        ${data.Category || "N/A"}
+                        ${escapeHTML(data.Category || "N/A")}
 
                     </p>
 
@@ -235,7 +238,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             Severity:
                         </strong>
 
-                        ${data.Severity || "N/A"}
+                        ${escapeHTML(data.Severity || "N/A")}
 
                     </p>
 
@@ -246,7 +249,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             Priority:
                         </strong>
 
-                        ${data.Priority || "N/A"}
+                        ${escapeHTML(data.Priority || "N/A")}
 
                     </p>
 
@@ -257,7 +260,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             Status:
                         </strong>
 
-                        ${currentStatus || "N/A"}
+                        	${escapeHTML(currentStatus || "N/A")}
 
                     </p>
 
@@ -300,7 +303,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             Location:
                         </strong>
 
-                        ${data.Location_Name || "N/A"}
+                        ${escapeHTML(data.Location_Name || "N/A")}
 
                     </p>
 
@@ -320,11 +323,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
                             const date = new Date(safeString);
 
-                            return isNaN(date.getTime())
-                                ? "N/A"
-                                : date.toLocaleString("en-IN", {
-                                    timeZone: "Asia/Kolkata"
-                                });
+                            return escapeHTML(
+                                isNaN(date.getTime())
+                                    ? "N/A"
+                                    : date.toLocaleString("en-IN", {
+                                        timeZone: "Asia/Kolkata"
+                                    })
+                            );
                         })()
                         : "N/A"
                     }
@@ -378,7 +383,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     >
 
                         <a
-                            href="report-details.html?id=${data.Report_id}"
+                            href="report-details.html?id=${escapeHTML(data.Report_id)}"
                             style="
                                 background:#2563eb;
                                 color:white;

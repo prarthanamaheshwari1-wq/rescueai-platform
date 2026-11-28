@@ -400,21 +400,21 @@ function renderAnalysisCards(analyses) {
 
                 ${message
                 ? `<span style="font-size:0.85em;line-height:1.5;display:block;">
-                               ${message}
-                           </span>`
+                   ${escapeHTML(message)}
+               </span>`
                 : ""
             }
 
                 ${prediction !== "UNKNOWN"
                 ? `<p style="margin:6px 0 0;">
-                               <strong>Prediction:</strong> ${prediction}
+                               <strong>Prediction:</strong> ${escapeHTML(prediction)}
                            </p>`
                 : ""
             }
 
                 ${status !== "unknown"
                 ? `<p style="margin:4px 0 0;">
-                               <strong>Assessment status:</strong> ${status}
+                               <strong>Assessment status:</strong> ${escapeHTML(status)}
                            </p>`
                 : ""
             }
@@ -429,46 +429,46 @@ function renderAnalysisCards(analyses) {
             <div class="analysis-card ${priorityClass}">
 
                 <h2>
-                    Report #${item.Report_id}
+                    Report #${escapeHTML(reportId)}
                 </h2>
 
                 ${authenticityBadge}
 
                 <p>
                     <strong>Category:</strong>
-                    ${item.AI_Category || "N/A"}
+                    ${escapeHTML(item.AI_Category || "N/A")}
                 </p>
 
                 <p>
                     <strong>Severity:</strong>
-                    ${item.AI_Severity || "N/A"}
+                    ${escapeHTML(item.AI_Severity || "N/A")}
                 </p>
 
                 <p>
                     <strong>Priority:</strong>
                     <span class="badge ${badgeClass}">
-                        ${priority}
+                        ${escapeHTML(priority)}
                     </span>
                 </p>
 
                 <p>
                     <strong>Misinformation Score:</strong>
-                    ${item.Misinformation_Score ?? 0}%
+                    ${escapeHTML(item.Misinformation_Score ?? 0)}
                 </p>
 
                 <p>
                     <strong>Summary:</strong>
-                    ${item.AI_Summary || "No summary provided."}
+                    ${escapeHTML(item.AI_Summary || "No summary provided.")}
                 </p>
 
                 <p style="white-space:pre-line;">
                     <strong>Visual Findings:</strong><br>
-                    ${item.AI_Visual_Findings || "No image evidence available."}
+                    ${escapeHTML(item.AI_Visual_Findings || "No image evidence available.")}
                 </p>
 
                 <p style="white-space:pre-line;">
                     <strong>Recommendation:</strong>
-                    ${item.AI_Recommendation || "No recommendation available."}
+                    ${escapeHTML(item.AI_Recommendation || "No recommendation available.")}
                 </p>
 
                 <button onclick="viewReport(${Number(reportId)})">

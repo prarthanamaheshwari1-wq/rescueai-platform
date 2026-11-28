@@ -12,6 +12,16 @@ console.log("Resources Dashboard Loaded");
 const API_BASE =
     `${window.location.protocol}//${window.location.hostname}:5000/api`;
 
+function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[character]);
+}
+
 
 // ==========================================
 // AUTHENTICATED FETCH
@@ -232,59 +242,51 @@ async function loadResources() {
                     status.toLowerCase();
 
 
-                tableBody.innerHTML += `
+                const resourceId = Number(resource.Resource_id);
 
-                    <tr>
+                if (!Number.isSafeInteger(resourceId) || resourceId <= 0) {
+                    console.warn("Skipping resource with invalid ID:", resource.Resource_id);
+                    return;
+                }
 
-                        <td>
-                            ${resource.Resource_id}
-                        </td>
+                const safeStatus =
+                    String(resource.Status || "").trim().toLowerCase() === "available"
+                        ? "Available"
+                        : "Deployed";
 
-                        <td>
-                            ${resource.Resource_Name}
-                        </td>
-
-                        <td>
-                            ${resource.Resource_Type}
-                        </td>
-
-                        <td>
-                            ${resource.Quantity}
-                        </td>
-
-                        <td>
-                            ${resource.Location_Name}
-                        </td>
-
-                        <td>
-                            ${status}
-                        </td>
-
-                        <td>
-
-                            <button
-                                class="${statusLower === "available"
-                        ? "deploy-btn"
-                        : "available-btn"
-                    }"
-                                onclick="updateStatus(
-                                    ${resource.Resource_id},
-                                    '${status}'
-                                )"
-                            >
-
-                                ${statusLower === "available"
+                const actionLabel =
+                    safeStatus === "Available"
                         ? "Deploy"
-                        : "Mark Available"
-                    }
+                        : "Mark Available";
 
-                            </button>
+                const actionClass =
+                    safeStatus === "Available"
+                        ? "deploy-btn"
+                        : "available-btn";
 
-                        </td>
+                const row = document.createElement("tr");
 
-                    </tr>
+                row.innerHTML = `
+    <td>${resourceId}</td>
+    <td>${escapeHTML(resource.Resource_Name || "N/A")}</td>
+    <td>${escapeHTML(resource.Resource_Type || "N/A")}</td>
+    <td>${escapeHTML(resource.Quantity ?? "N/A")}</td>
+    <td>${escapeHTML(resource.Location_Name || "N/A")}</td>
+    <td>${escapeHTML(safeStatus)}</td>
+    <td>
+        <button class="${actionClass}">
+            ${actionLabel}
+        </button>
+    </td>
+`;
 
-                `;
+                const actionButton = row.querySelector("button");
+
+                actionButton.addEventListener("click", () => {
+                    updateStatus(resourceId, safeStatus);
+                });
+
+                tableBody.appendChild(row);
 
             }
         );
@@ -907,47 +909,27 @@ async function loadAssignments() {
         // DISPLAY ASSIGNMENTS
         // ==========================================
 
-        assignments.forEach(
-            assignment => {
+        assignments.forEach(assignment => {
+            const row = document.createElement("tr");
 
-                tableBody.innerHTML += `
+            const values = [
+                assignment.Assignment_id,
+                assignment.Report_id,
+                assignment.Resource_Name,
+                assignment.Resource_Type,
+                assignment.Quantity,
+                assignment.Location_Name,
+                assignment.Status
+            ];
 
-                    <tr>
+            values.forEach(value => {
+                const cell = document.createElement("td");
+                cell.textContent = String(value ?? "N/A");
+                row.appendChild(cell);
+            });
 
-                        <td>
-                            ${assignment.Assignment_id}
-                        </td>
-
-                        <td>
-                            ${assignment.Report_id}
-                        </td>
-
-                        <td>
-                            ${assignment.Resource_Name}
-                        </td>
-
-                        <td>
-                            ${assignment.Resource_Type}
-                        </td>
-
-                        <td>
-                            ${assignment.Quantity}
-                        </td>
-
-                        <td>
-                            ${assignment.Location_Name}
-                        </td>
-
-                        <td>
-                            ${assignment.Status}
-                        </td>
-
-                    </tr>
-
-                `;
-
-            }
-        );
+            tableBody.appendChild(row);
+        });
 
 
     } catch (error) {

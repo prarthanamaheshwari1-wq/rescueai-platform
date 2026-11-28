@@ -180,6 +180,13 @@ async function loadReports() {
 
         reports.forEach(report => {
 
+            const reportId = Number(report.Report_id);
+
+            if (!Number.isSafeInteger(reportId) || reportId <= 0) {
+                console.warn("Skipping report with invalid ID:", report.Report_id);
+                return;
+            }
+
             const status =
                 String(
                     report.Status || "Submitted"
@@ -193,7 +200,7 @@ async function loadReports() {
                 <tr>
 
                     <td>
-                        ${report.Report_id}
+                        ${reportId}
                     </td>
 
                     <td>
@@ -217,7 +224,7 @@ async function loadReports() {
                     <td>
 
                         <select
-                            id="status-${report.Report_id}"
+                            id="status-${reportId}"
                             ${status === "Resolved" ||
                     status === "Rejected"
                     ? "disabled"
@@ -302,7 +309,7 @@ async function loadReports() {
 
                     : `
                                     <button
-                                        onclick="updateStatus(${report.Report_id})"
+                                        onclick="updateStatus(${reportId})"
                                     >
                                         Update
                                     </button>
@@ -325,7 +332,7 @@ async function loadReports() {
 
                     : `
                                     <button
-                                        onclick="assignResource(${report.Report_id})"
+                                        onclick="assignResource(${reportId})"
                                     >
                                         🚒 Resource
                                     </button>
@@ -348,7 +355,7 @@ async function loadReports() {
 
                     : `
                                     <button
-                                        onclick="assignVolunteer(${report.Report_id})"
+                                        onclick="assignVolunteer(${reportId})"
                                     >
                                         👨‍🚒 Volunteer
                                     </button>
@@ -361,7 +368,7 @@ async function loadReports() {
                     <td>
 
                         <button
-                            onclick="viewReport(${report.Report_id})"
+                            onclick="viewReport(${reportId})"
                         >
                             View
                         </button>
@@ -478,6 +485,13 @@ async function loadAlerts() {
 
         alerts.forEach(alert => {
 
+            const alertId = Number(alert.Alert_id);
+
+            if (!Number.isSafeInteger(alertId) || alertId <= 0) {
+                console.warn("Skipping alert with invalid ID:", alert.Alert_id);
+                return;
+            }
+
             container.innerHTML += `
                 <div class="card">
 
@@ -500,7 +514,7 @@ async function loadAlerts() {
                     </p>
 
                     <button
-                        onclick="resolveAlert(${alert.Alert_id})"
+                        onclick="resolveAlert(${alertId})"
                     >
                         Resolve Alert
                     </button>

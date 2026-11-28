@@ -5,6 +5,16 @@ let isRefreshing = false;
 // Automatically matches whatever hostname the user uses (localhost or 127.0.0.1)
 const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000/api`;
 
+function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[char]);
+}
+
 // ==========================================
 // AUTHENTICATED FETCH
 // ==========================================
@@ -263,63 +273,51 @@ async function loadEvents() {
             );
 
 
-        container.innerHTML = "";
+        container.innerHTML = events.map(event => {
+            const type = String(event.Disaster_Type || "general")
+                .toLowerCase()
+                .replace(/[^a-z0-9_-]/g, "");
 
+            const name = escapeHTML(event.Disaster_Name || "Unnamed Disaster");
+            const disasterType = escapeHTML(event.Disaster_Type || "N/A");
+            const description = escapeHTML(event.Description || "No description available.");
+            const status = String(event.Status || "Unknown");
+            const safeStatus = escapeHTML(status);
+            const statusClass = status.toLowerCase()
+                .replace(/[^a-z0-9_-]/g, "");
 
-        events.forEach(event => {
+            const startDate = event.Start_Date
+                ? escapeHTML(new Date(event.Start_Date).toLocaleString())
+                : "N/A";
 
-            container.innerHTML += `
-                <div class="event-card ${String(event.Disaster_Type || "").toLowerCase()}">
-
-                    <h3>
-                        ${event.Disaster_Name}
-                    </h3>
+            return `
+                <div class="event-card ${type}">
+                    <h3>${name}</h3>
 
                     <p>
                         <strong>Type:</strong>
-                        ${event.Disaster_Type}
+                        ${disasterType}
                     </p>
 
                     <p>
                         <strong>Description:</strong>
-                        ${event.Description}
+                        ${description}
                     </p>
 
                     <p>
                         <strong>Status:</strong>
-
-                        <span class="event-status ${String(event.Status || "").toLowerCase()}">
-
-                            ${
-                                String(
-                                    event.Status || ""
-                                )
-                                    .toLowerCase() ===
-                                "active"
-                                    ? "Active"
-                                    : event.Status
-                            }
-
+                        <span class="event-status ${statusClass}">
+                            ${status.toLowerCase() === "active" ? "Active" : safeStatus}
                         </span>
                     </p>
 
                     <p>
                         <strong>Start Date:</strong>
-
-                        ${
-                            event.Start_Date
-                                ? new Date(
-                                    event.Start_Date
-                                ).toLocaleString()
-                                : "N/A"
-                        }
-
+                        ${startDate}
                     </p>
-
                 </div>
             `;
-
-        });
+        }).join("");
 
 
         console.log(

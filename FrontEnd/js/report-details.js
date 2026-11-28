@@ -175,10 +175,18 @@ async function loadReportDetails() {
                 !cleanPath.split("/").some(part => part === "." || part === "..") &&
                 !/[<>"'`]/.test(cleanPath)
             ) {
-                photoUrl = new URL(
+                const candidateUrl = new URL(
                     cleanPath,
                     `${window.location.protocol}//${window.location.hostname}:5000/`
-                ).href;
+                );
+
+                if (
+                    candidateUrl.protocol === window.location.protocol &&
+                    candidateUrl.hostname === window.location.hostname &&
+                    candidateUrl.port === "5000"
+                ) {
+                    photoUrl = candidateUrl.href;
+                }
             }
         }
 
